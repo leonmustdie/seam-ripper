@@ -214,7 +214,8 @@ def nearest_bone(verts, bones):
 
 # -------------------------------------------------------------------- glb
 
-def build_glb(bones, submeshes, mapping, out_path, texture_index=None):
+def build_glb(bones, submeshes, mapping, out_path, texture_index=None,
+             force_hash=None):
     bin_parts = []
 
     def push(data):
@@ -233,10 +234,19 @@ def build_glb(bones, submeshes, mapping, out_path, texture_index=None):
         print(f"texture index: {len(texture_index)} available: {avail}{more}")
 
     def _colorfulness(png_path):
-        """Rough R/G/B divergence check: near-0 means the image is
-        effectively greyscale (a lightmap/AO/shadow mask, not a diffuse
-        color texture). Sampled sparsely — this is a heuristic to break
-        ties among several texture candidates, not a real decoder."""
+        """Rough check for whether an image looks like a genuine diffuse
+        color texture, as opposed to a greyscale mask (lightmap/AO/shadow)
+        or a tangent-space normal map. Sampled sparsely — a heuristic to
+        rank candidates, not a real decoder.
+
+        Two disqualifying signatures, checked independently:
+          - near-perfect R≈G≈B correlation: greyscale mask.
+          - average blue channel far above red/green, both of which sit
+            near neutral (128): classic normal map (XY in R/G centered at
+            zero, Z/outward in B near max). A normal map has real channel
+            divergence, so a naive "not greyscale" check alone picks it,
+            which is exactly what happened on real data before this.
+        """
         try:
             import zlib as _zlib
             d = png_path.read_bytes()
@@ -255,19 +265,44 @@ def build_glb(bones, submeshes, mapping, out_path, texture_index=None):
                 pos += 12 + ln
             raw = _zlib.decompress(idat)
             stride = w * 4
-            diffs, prev = [], [0] * stride
+            prev = [0] * stride
             i = 0
+            rs, gs, bs, diffs = [], [], [], []
             for _y in range(h):
                 ftype = raw[i]; i += 1
                 row = bytearray(raw[i:i + stride]); i += stride
-                if ftype == 2:                          # Up (the common case)
+                if ftype == 1:                          # Sub
+                    for x in range(4, stride):
+                        row[x] = (row[x] + row[x - 4]) & 0xFF
+                elif ftype == 2:                        # Up
                     for x in range(stride):
                         row[x] = (row[x] + prev[x]) & 0xFF
+                elif ftype == 3:                        # Average
+                    for x in range(stride):
+                        a = row[x - 4] if x >= 4 else 0
+                        row[x] = (row[x] + (a + prev[x]) // 2) & 0xFF
+                elif ftype == 4:                        # Paeth
+                    for x in range(stride):
+                        a = row[x - 4] if x >= 4 else 0
+                        b = prev[x]
+                        c = prev[x - 4] if x >= 4 else 0
+                        p = a + b - c
+                        pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                        pred = a if pa <= pb and pa <= pc else (b if pb <= pc else c)
+                        row[x] = (row[x] + pred) & 0xFF
                 prev = list(row)
                 for x in range(0, stride, 4 * 7):        # sparse sample
                     r, g, b = row[x], row[x + 1], row[x + 2]
+                    rs.append(r); gs.append(g); bs.append(b)
                     diffs.append(abs(r - g) + abs(g - b) + abs(r - b))
-            return sum(diffs) / max(1, len(diffs))
+            n = max(1, len(rs))
+            mr, mg, mb = sum(rs) / n, sum(gs) / n, sum(bs) / n
+            looks_like_normal_map = (
+                mb > 200 and abs(mr - 128) < 40 and abs(mg - 128) < 40
+                and mb - max(mr, mg) > 60)
+            if looks_like_normal_map:
+                return -1000       # disqualified: real divergence, wrong kind
+            return sum(diffs) / n
         except Exception:
             return -1                                    # couldn't check; don't crash the export over it
 
@@ -283,6 +318,30 @@ def build_glb(bones, submeshes, mapping, out_path, texture_index=None):
                  f"found for it at all (untextured — not a matching problem, "
                  f"this submesh never named a texture in the first place)")
             return None
+        if force_hash is not None:
+            if force_hash not in texture_index:
+                print(f"  submesh {submesh_idx}: --texture {force_hash:08x} "
+                     f"was given but that hash isn't in this unit's texture "
+                     f"index at all — check the hex value against the "
+                     f"filenames actually sitting in the *_textures folder")
+                return None
+            h = force_hash
+            chosen_reason = "forced via --texture"
+            if h in img_cache:
+                print(f"  submesh {submesh_idx}: matched {h:08x} ({chosen_reason}, already embedded, reused)")
+                return img_cache[h]
+            img = Path(texture_index[h])
+            off, ln = push(img.read_bytes())
+            images.append({"bufferView": len(buffer_views), "mimeType": "image/png",
+                           "name": img.stem})
+            buffer_views.append({"buffer": 0, "byteOffset": off, "byteLength": ln})
+            if not samplers:
+                samplers.append({})
+            textures.append({"source": len(images) - 1, "sampler": 0})
+            idx = len(textures) - 1
+            img_cache[h] = idx
+            print(f"  submesh {submesh_idx}: matched {h:08x} ({chosen_reason}) -> {img.name}, embedded")
+            return idx
         if not texture_index:
             print(f"  submesh {submesh_idx}: wants {', '.join(f'{h:08x}' for h in refs)}, "
                  f"but no texture_index was built at all (no texture chunks "
@@ -450,6 +509,16 @@ def main():
     ap.add_argument("unit", help="extracted unit directory (e.g. "
                                  "lu_extracted/naughtybear)")
     ap.add_argument("-o", "--out", required=True, help="output .glb path")
+    ap.add_argument("--texture", metavar="HASH",
+                    help="force this texture hash (hex, e.g. 26ca1642) as "
+                         "the diffuse for every textured submesh, instead "
+                         "of the auto-picked highest-scoring candidate. "
+                         "Use this once you've confirmed by eye which of "
+                         "the candidates printed by a normal run is "
+                         "actually the right one — the auto-scoring rules "
+                         "out lightmaps and normal maps but can't tell a "
+                         "correct color texture from an incorrect but "
+                         "highly saturated one, that needs a human look.")
     args = ap.parse_args()
     unit = Path(args.unit)
 
@@ -512,7 +581,15 @@ def main():
     if n_tex:
         print(f"textures: {n_tex} converted to {tex_dir}")
 
-    out = build_glb(skel, subs, mapping, args.out, texture_index=tex_index)
+    force_hash = None
+    if args.texture:
+        try:
+            force_hash = int(args.texture, 16)
+        except ValueError:
+            sys.exit(f"--texture {args.texture!r} isn't a valid hex hash "
+                     f"(expected something like 26ca1642)")
+    out = build_glb(skel, subs, mapping, args.out, texture_index=tex_index,
+                    force_hash=force_hash)
     print(f"wrote {out}")
 
 

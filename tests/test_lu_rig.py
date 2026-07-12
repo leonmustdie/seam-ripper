@@ -39,7 +39,7 @@ def _tiny_png(rgb=(255, 0, 0)):
 def _patterned_png(pixel_fn, w=8, h=8):
     """An 8x8 RGBA PNG with a real per-pixel pattern, for testing the
     colorfulness heuristic, which needs more than one pixel to say
-    anything meaningful."""
+    anything meaningful. Filter type 0 (none) throughout."""
     def chunk(tag, data):
         return (struct.pack(">I", len(data)) + tag + data
                 + struct.pack(">I", zlib.crc32(tag + data)))
@@ -48,6 +48,46 @@ def _patterned_png(pixel_fn, w=8, h=8):
         raw.append(0)   # no filter
         for x in range(w):
             raw += bytes(pixel_fn(x, y))
+    ihdr = chunk(b"IHDR", struct.pack(">2I5B", w, h, 8, 6, 0, 0, 0))
+    idat = chunk(b"IDAT", zlib.compress(bytes(raw)))
+    return b"\x89PNG\r\n\x1a\n" + ihdr + idat + chunk(b"IEND", b"")
+
+
+def _patterned_png_paeth_filtered(pixel_fn, w=8, h=8):
+    """Same as _patterned_png, but actually applies PNG filter type 4
+    (Paeth) to every row after the first. This exists specifically to
+    regression-test a real bug: the colorfulness heuristic originally
+    only correctly unfiltered PNG filter type 2 (Up), silently treating
+    Sub/Average/Paeth-filtered rows as if they were already raw pixel
+    values. That bug meant a real normal map on real game data wasn't
+    detected, because the actual PNG encoder chose a non-Up filter for
+    some rows. A fixture using only filter 0 (as _patterned_png does)
+    would pass even with that bug still present — it never exercises
+    the broken code path at all."""
+    def chunk(tag, data):
+        return (struct.pack(">I", len(data)) + tag + data
+                + struct.pack(">I", zlib.crc32(tag + data)))
+
+    def paeth(a, b, c):
+        p = a + b - c
+        pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+        return a if pa <= pb and pa <= pc else (b if pb <= pc else c)
+
+    prev = [0] * (w * 4)
+    raw = bytearray()
+    for y in range(h):
+        row = []
+        for x in range(w):
+            row.extend(pixel_fn(x, y))
+        filtered = bytearray()
+        for x in range(len(row)):
+            a = row[x - 4] if x >= 4 else 0
+            b = prev[x]
+            c = prev[x - 4] if x >= 4 else 0
+            filtered.append((row[x] - paeth(a, b, c)) & 0xFF)
+        raw.append(4)                # filter type 4: Paeth
+        raw.extend(filtered)
+        prev = row
     ihdr = chunk(b"IHDR", struct.pack(">2I5B", w, h, 8, 6, 0, 0, 0))
     idat = chunk(b"IDAT", zlib.compress(bytes(raw)))
     return b"\x89PNG\r\n\x1a\n" + ihdr + idat + chunk(b"IEND", b"")
@@ -171,6 +211,61 @@ class TestTextureEmbedding(unittest.TestCase):
                          texture_index={h: str(png)})
         gltf, _ = _parse_glb(out)
         self.assertEqual(gltf["images"][0]["name"], "only")
+
+    def test_normal_map_signature_disqualified(self):
+        """A second real incident: a normal map (blue-dominant, R/G
+        centered near neutral 128) has genuine per-channel divergence, so
+        a naive 'is this greyscale' check alone picks it as if it were a
+        real color texture. Uses the Paeth-filtered fixture so this
+        exercises real multi-filter-type PNG decoding, not just filter 0.
+
+        Note: this specific fixture's diffuse candidate happens to win
+        the race on raw color-score alone even without the disqualify
+        check firing, so it doesn't cleanly isolate that one check in
+        isolation — it documents correct end-to-end behavior on the
+        fixed code, not a minimal bug-vs-fix discriminator. The actual
+        proof the disqualify check works is direct: real game data
+        (d2174e82, a genuine normal map) scored -1000 and was excluded
+        after this fix, verified by hand against the uploaded texture
+        set before this test was written."""
+        normal_map = self.tmp_path / "normal.png"
+        normal_map.write_bytes(_patterned_png_paeth_filtered(
+            lambda x, y: (120 + (x % 3), 130 - (x % 3), 250, 255)))
+        diffuse = self.tmp_path / "diffuse.png"
+        diffuse.write_bytes(_patterned_png_paeth_filtered(
+            lambda x, y: (180, 70, 40, 255) if (x + y) % 2 else (60, 100, 150, 255)))
+
+        normal_hash, diffuse_hash = 0x1111, 0x2222
+        subs = [_submesh([normal_hash, diffuse_hash])]
+        out = self.tmp_path / "skips_normal_map.glb"
+        lu_rig.build_glb(BONES, subs, MAPPING, str(out), texture_index={
+            normal_hash: str(normal_map), diffuse_hash: str(diffuse)})
+        gltf, _ = _parse_glb(out)
+        self.assertEqual(gltf["images"][0]["name"], "diffuse")
+
+    def test_force_hash_overrides_auto_selection(self):
+        """--texture / force_hash must win even over a candidate that
+        would otherwise score higher — this is the deliberate escape
+        hatch for cases the heuristic can't resolve on its own (a highly
+        saturated but wrong texture can legitimately outscore the
+        correct, more muted one; that's a job for a human, not a
+        scorer)."""
+        wrong_but_flashy = self.tmp_path / "flashy.png"
+        wrong_but_flashy.write_bytes(_patterned_png(
+            lambda x, y: (250, 10, 5, 255)))   # extremely saturated, would win on score
+        correct = self.tmp_path / "correct.png"
+        correct.write_bytes(_patterned_png(
+            lambda x, y: (140, 100, 70, 255) if (x + y) % 2 else (120, 90, 65, 255)))
+
+        flashy_hash, correct_hash = 0x3333, 0x4444
+        subs = [_submesh([flashy_hash, correct_hash])]
+        out = self.tmp_path / "forced.glb"
+        lu_rig.build_glb(BONES, subs, MAPPING, str(out),
+                         texture_index={flashy_hash: str(wrong_but_flashy),
+                                       correct_hash: str(correct)},
+                         force_hash=correct_hash)
+        gltf, _ = _parse_glb(out)
+        self.assertEqual(gltf["images"][0]["name"], "correct")
 
 
 if __name__ == "__main__":

@@ -133,6 +133,31 @@ the log's per-submesh line, it now prints every candidate hash and its
 color-score, so which one got picked and why is visible directly instead
 of needing this whole investigation again.
 
+Two further things came out of chasing one real model's worth of
+candidates all the way through:
+
+- **Normal maps score as "colorful" too, wrongly.** A tangent-space
+  normal map has real per-channel divergence (blue channel near 255, R/G
+  near neutral 128), so a check that only rules out greyscale isn't
+  enough, it needs to specifically rule out that signature too. Fixed,
+  with a real caught bug along the way: the color-check only correctly
+  decoded PNG filter type 2 (Up), silently corrupting rows using Sub/
+  Average/Paeth filtering. A normal map encoded with any of those other
+  filter types would have sailed through undetected even with the
+  disqualify logic theoretically in place, because the pixel values it
+  was checking weren't real. Test fixtures need to actually use a
+  non-zero filter type to catch this class of bug, filter-0-only
+  synthetic PNGs pass regardless of whether the unfiltering is correct.
+- **The heuristic can still legitimately pick the wrong candidate**, not
+  from a bug, just from ambiguity: a highly saturated but incorrect
+  texture (a decal, a small accent color) can outscore a correct but
+  more muted diffuse on raw color divergence alone. This isn't
+  automatable without knowing what the character is actually supposed to
+  look like. `lu_rig.py --texture <hash>` (or the "force texture hash"
+  field in the GUI form) forces a specific hash for every textured
+  submesh once you've looked at the candidates in `*_textures\` yourself
+  and know which one is actually right.
+
 ## The built EXE behaves differently than source-run testing
 
 This is what shipped in v1.0.0. The two run through genuinely different

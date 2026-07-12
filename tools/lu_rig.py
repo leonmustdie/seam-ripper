@@ -259,67 +259,79 @@ def build_glb(bones, submeshes, mapping, out_path, texture_index=None,
         print(f"texture index: {len(texture_index)} available: {avail}{more}")
 
     def _colorfulness(png_path):
-        """Rough check for whether an image looks like a genuine diffuse
-        color texture, as opposed to a greyscale mask (lightmap/AO/shadow)
-        or a tangent-space normal map. Sampled sparsely — a heuristic to
-        rank candidates, not a real decoder.
+        """Rough check for whether an image looks like a genuine, opaque
+        diffuse color texture, as opposed to a greyscale mask (lightmap/
+        AO/shadow), a tangent-space normal map, or a mostly-transparent
+        decal/pattern overlay meant to be alpha-blended over a separate
+        base color by the game's own shader — not something that stands
+        alone as baseColorTexture. Sampled sparsely — a heuristic to rank
+        candidates, not a real decoder.
 
-        Two disqualifying signatures, checked independently:
+        Three disqualifying signatures, checked independently:
           - near-perfect R≈G≈B correlation: greyscale mask.
-          - average blue channel far above red/green, both of which sit
-            near neutral (128): classic normal map (XY in R/G centered at
-            zero, Z/outward in B near max). A normal map has real channel
-            divergence, so a naive "not greyscale" check alone picks it,
-            which is exactly what happened on real data before this.
+          - average blue channel far above red/green, both near neutral
+            (128): normal map.
+          - low average alpha: a decal/overlay, real color data but most
+            of the image is meant to show whatever's underneath it,
+            which a flat baseColorTexture has no way to represent. Used
+            directly, this renders as black-with-scattered-color, easy
+            to mistake for "it embedded something, just wrong" rather
+            than "this was never meant to be used alone."
         """
         try:
             import zlib as _zlib
             d = png_path.read_bytes()
             pos, w = 8, None
             idat = b""
+            colortype = None
             while pos < len(d):
                 ln = struct.unpack_from(">I", d, pos)[0]
                 tag = d[pos + 4:pos + 8]
                 chunk = d[pos + 8:pos + 8 + ln]
                 if tag == b"IHDR":
                     w, h = struct.unpack_from(">2I", chunk, 0)
+                    colortype = chunk[9]
                 elif tag == b"IDAT":
                     idat += chunk
                 elif tag == b"IEND":
                     break
                 pos += 12 + ln
             raw = _zlib.decompress(idat)
-            stride = w * 4
+            has_alpha = colortype == 6
+            ch = 4 if has_alpha else 3
+            stride = w * ch
             prev = [0] * stride
             i = 0
-            rs, gs, bs, diffs = [], [], [], []
+            rs, gs, bs, als, diffs = [], [], [], [], []
             for _y in range(h):
                 ftype = raw[i]; i += 1
                 row = bytearray(raw[i:i + stride]); i += stride
                 if ftype == 1:                          # Sub
-                    for x in range(4, stride):
-                        row[x] = (row[x] + row[x - 4]) & 0xFF
+                    for x in range(ch, stride):
+                        row[x] = (row[x] + row[x - ch]) & 0xFF
                 elif ftype == 2:                        # Up
                     for x in range(stride):
                         row[x] = (row[x] + prev[x]) & 0xFF
                 elif ftype == 3:                        # Average
                     for x in range(stride):
-                        a = row[x - 4] if x >= 4 else 0
+                        a = row[x - ch] if x >= ch else 0
                         row[x] = (row[x] + (a + prev[x]) // 2) & 0xFF
                 elif ftype == 4:                        # Paeth
                     for x in range(stride):
-                        a = row[x - 4] if x >= 4 else 0
+                        a = row[x - ch] if x >= ch else 0
                         b = prev[x]
-                        c = prev[x - 4] if x >= 4 else 0
+                        c = prev[x - ch] if x >= ch else 0
                         p = a + b - c
                         pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
                         pred = a if pa <= pb and pa <= pc else (b if pb <= pc else c)
                         row[x] = (row[x] + pred) & 0xFF
                 prev = list(row)
-                for x in range(0, stride, 4 * 7):        # sparse sample
+                for x in range(0, stride, ch * 7):        # sparse sample
                     r, g, b = row[x], row[x + 1], row[x + 2]
                     rs.append(r); gs.append(g); bs.append(b)
                     diffs.append(abs(r - g) + abs(g - b) + abs(r - b))
+                    if has_alpha:
+                        als.append(row[x + 3])
             n = max(1, len(rs))
             mr, mg, mb = sum(rs) / n, sum(gs) / n, sum(bs) / n
             looks_like_normal_map = (
@@ -327,6 +339,10 @@ def build_glb(bones, submeshes, mapping, out_path, texture_index=None,
                 and mb - max(mr, mg) > 60)
             if looks_like_normal_map:
                 return -1000       # disqualified: real divergence, wrong kind
+            if has_alpha and als:
+                ma = sum(als) / len(als)
+                if ma < 200:        # meaningfully non-opaque, not just AA edges
+                    return -1000    # disqualified: decal/overlay, not a base color
             return sum(diffs) / n
         except Exception:
             return -1                                    # couldn't check; don't crash the export over it
@@ -576,7 +592,26 @@ def main():
         if subs and (best is None or nv > best[0]):
             best = (nv, subs, p.name)
     if not best:
-        sys.exit("no skinned mesh found in unit")
+        # Don't just fail — this exact failure usually means "unit" is one
+        # level too shallow (pointed at a multi-file extract destination
+        # instead of one file's own subfolder within it), not that the
+        # data genuinely isn't there. Check recursively, purely to give a
+        # specific hint; the real (non-recursive) search above is what
+        # actually decides pass/fail, so pointing at a multi-unit folder
+        # doesn't silently grab a mesh from the wrong sibling.
+        deeper = sorted(set(p.parent for p in unit.rglob("*.bin")
+                            if p.parent.name in ("mesh_buffers", "type_34000007")))
+        if deeper:
+            hint = "\n".join(f"    {d}" for d in deeper[:5])
+            sys.exit(f"no skinned mesh found directly in {unit}, but a mesh "
+                     f"folder exists deeper:\n{hint}\n"
+                     f"  'unit' usually needs to point at one file's own "
+                     f"extracted subfolder, not the folder you extracted "
+                     f"multiple files into — try pointing at the folder "
+                     f"printed above instead.")
+        sys.exit(f"no skinned mesh found anywhere under {unit} "
+                 f"(checked recursively) — this unit may genuinely not "
+                 f"have a skinned character in it")
     nv, subs, name = best
     print(f"mesh {name}: {len(subs)} submeshes, {nv} verts")
     mapping = solve_palette(subs, skel)

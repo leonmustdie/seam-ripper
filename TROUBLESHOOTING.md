@@ -148,6 +148,16 @@ candidates all the way through:
   was checking weren't real. Test fixtures need to actually use a
   non-zero filter type to catch this class of bug, filter-0-only
   synthetic PNGs pass regardless of whether the unfiltering is correct.
+- **Mostly-transparent decal/overlay textures score as "colorful" too,
+  also wrongly**, a third real incident. A pattern-overlay texture
+  (average alpha 37/255 on the file that actually triggered this) has
+  real saturated color in its sparse opaque pixels, scoring higher than
+  a properly opaque but more muted correct base. Used directly as
+  `baseColorTexture` with nothing underneath it, this renders as
+  black-with-scattered-color, since alpha blending has nothing to blend
+  against. The scorer never looked at alpha at all before this; now
+  average alpha below ~200 disqualifies a candidate the same way
+  greyscale and normal-map signatures do.
 - **The heuristic can still legitimately pick the wrong candidate**, not
   from a bug, just from ambiguity: a highly saturated but incorrect
   texture (a decal, a small accent color) can outscore a correct but
@@ -157,6 +167,24 @@ candidates all the way through:
   field in the GUI form) forces a specific hash for every textured
   submesh once you've looked at the candidates in `*_textures\` yourself
   and know which one is actually right.
+
+## lu_rig.py: "no skinned mesh found in unit" but the unit clearly has one
+
+Check whether `unit` is pointed at the outer destination folder from a
+multi-file extraction, rather than one specific file's own subfolder
+within it. Extracting several `.lu` files into one output folder creates
+one subfolder per file, named after each file's own stem, e.g.
+extracting `armybear.lu` into a folder you'd already named `armybear`
+produces `armybear\armybear\`, one level deeper than it looks at a
+glance. Skeleton-finding recursively scans everything under `unit` and
+will happily succeed even when pointed at the outer folder; mesh-finding
+only checks direct children (`mesh_buffers\` / `type_34000007\`)
+deliberately, so it doesn't silently pull a mesh from some other sibling
+unit if the outer folder genuinely does hold more than one character's
+data. When this happens now, the error message itself names the correct
+deeper folder to point at instead of just failing blank
+(`tests/test_lu_rig.py`'s `TestUnitFolderDiagnostic` is the permanent
+regression, reproducing this exact folder shape end to end).
 
 ## The built EXE behaves differently than source-run testing
 

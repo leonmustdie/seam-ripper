@@ -6,6 +6,7 @@ real game mesh/texture data.
 """
 import json
 import struct
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -48,6 +49,27 @@ def _patterned_png(pixel_fn, w=8, h=8):
         raw.append(0)   # no filter
         for x in range(w):
             raw += bytes(pixel_fn(x, y))
+    ihdr = chunk(b"IHDR", struct.pack(">2I5B", w, h, 8, 6, 0, 0, 0))
+    idat = chunk(b"IDAT", zlib.compress(bytes(raw)))
+    return b"\x89PNG\r\n\x1a\n" + ihdr + idat + chunk(b"IEND", b"")
+
+
+def _mostly_transparent_png(w=8, h=8):
+    """An 8x8 RGBA PNG where most pixels are fully transparent and a few
+    are opaque, saturated color — a decal/pattern-overlay texture, real
+    color data but meant to be alpha-blended over a separate base color
+    by the game's own shader, not stand alone as baseColorTexture."""
+    def chunk(tag, data):
+        return (struct.pack(">I", len(data)) + tag + data
+                + struct.pack(">I", zlib.crc32(tag + data)))
+    raw = bytearray()
+    for y in range(h):
+        raw.append(0)   # no filter
+        for x in range(w):
+            if (x + y) % 5 == 0:
+                raw += bytes((0, 220, 40, 255))   # sparse opaque green blob
+            else:
+                raw += bytes((0, 0, 0, 0))        # transparent elsewhere
     ihdr = chunk(b"IHDR", struct.pack(">2I5B", w, h, 8, 6, 0, 0, 0))
     idat = chunk(b"IDAT", zlib.compress(bytes(raw)))
     return b"\x89PNG\r\n\x1a\n" + ihdr + idat + chunk(b"IEND", b"")
@@ -212,6 +234,29 @@ class TestTextureEmbedding(unittest.TestCase):
         gltf, _ = _parse_glb(out)
         self.assertEqual(gltf["images"][0]["name"], "only")
 
+    def test_mostly_transparent_decal_disqualified(self):
+        """The third real incident on real data: a mostly-transparent
+        decal/pattern-overlay texture (average alpha 37/255 on the real
+        file that triggered this) has real, saturated color in its
+        sparse opaque pixels, which scored HIGHER than a properly opaque
+        but more muted correct base texture — the scorer never looked at
+        alpha at all. Used directly as baseColorTexture, this renders as
+        black-with-scattered-color, since the transparent majority has
+        nothing underneath it to show through to."""
+        decal = self.tmp_path / "decal.png"
+        decal.write_bytes(_mostly_transparent_png())
+        base_color = self.tmp_path / "base.png"
+        base_color.write_bytes(_patterned_png(
+            lambda x, y: (90, 110, 60, 255) if (x + y) % 2 else (70, 90, 50, 255)))
+
+        decal_hash, base_hash = 0x5555, 0x6666
+        subs = [_submesh([decal_hash, base_hash])]
+        out = self.tmp_path / "skips_decal.glb"
+        lu_rig.build_glb(BONES, subs, MAPPING, str(out), texture_index={
+            decal_hash: str(decal), base_hash: str(base_color)})
+        gltf, _ = _parse_glb(out)
+        self.assertEqual(gltf["images"][0]["name"], "base")
+
     def test_normal_map_signature_disqualified(self):
         """A second real incident: a normal map (blue-dominant, R/G
         centered near neutral 128) has genuine per-channel divergence, so
@@ -357,6 +402,49 @@ class TestSmoothNormals(unittest.TestCase):
             acc = gltf["accessors"][attrs["NORMAL"]]
             self.assertEqual(acc["type"], "VEC3")
             self.assertEqual(acc["count"], 3)
+
+
+class TestUnitFolderDiagnostic(unittest.TestCase):
+    """Reproduces a real incident: pointing lu_rig.py at a multi-file
+    extraction's outer destination folder instead of one file's own
+    subfolder within it. Skeleton-finding recursively scans everything
+    under 'unit' and succeeds; mesh-finding only checks direct children
+    and fails, with a message that used to just say 'no skinned mesh
+    found in unit', no hint that the data exists one level deeper.
+    """
+
+    @staticmethod
+    def _fake_skeleton_bytes():
+        import numpy as np
+        buf = bytearray(0xC0)
+        struct.pack_into(">I", buf, 4, 0x04000001)
+        rec_ptr, n, hash_ptr, tptr = 0x60, 1, 0xB0, 0x70
+        struct.pack_into(">2I", buf, 0x10, rec_ptr, n)
+        struct.pack_into(">I", buf, 0x48, hash_ptr)
+        struct.pack_into(">i3i", buf, rec_ptr, tptr, -1, -1, -1)
+        buf[tptr:tptr + 64] = np.eye(4, dtype=">f4").tobytes()
+        struct.pack_into(">Ii", buf, hash_ptr, 0x1234, 0)
+        return bytes(buf)
+
+    def test_suggests_the_deeper_folder(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            outer = Path(tmp) / "armybear"
+            inner = outer / "armybear"
+            (inner / "unk_04000001").mkdir(parents=True)
+            (inner / "mesh_buffers").mkdir(parents=True)
+            (inner / "unk_04000001" / "0001_skel.bin").write_bytes(
+                self._fake_skeleton_bytes())
+            (inner / "mesh_buffers" / "0425_fake.bin").write_bytes(b"\x00" * 32)
+
+            script = str(Path(__file__).resolve().parent.parent / "tools" / "lu_rig.py")
+            r = subprocess.run(
+                [sys.executable, script, str(outer), "-o", str(Path(tmp) / "out.glb")],
+                capture_output=True, text=True)
+
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("skeleton: 1 bones", r.stdout)
+            self.assertIn("mesh folder exists deeper", r.stderr)
+            self.assertIn(str(inner / "mesh_buffers"), r.stderr)
 
 
 if __name__ == "__main__":

@@ -227,19 +227,45 @@ def build_glb(bones, submeshes, mapping, out_path, texture_index=None):
     images, textures, samplers, materials = [], [], [], []
     img_cache = {}   # hash -> texture index, so a reused texture embeds once
 
-    def texture_for(refs):
+    if texture_index:
+        avail = ", ".join(f"{h:08x}" for h in sorted(texture_index)[:12])
+        more = "" if len(texture_index) <= 12 else f" (+{len(texture_index) - 12} more)"
+        print(f"texture index: {len(texture_index)} available: {avail}{more}")
+
+    def texture_for(refs, submesh_idx):
         """First texture_index hit among a submesh's ref hashes, embedded
-        (PNG bytes pushed into the shared buffer) at most once per image."""
+        (PNG bytes pushed into the shared buffer) at most once per image.
+        Prints exactly why a submesh ends up untextured, rather than
+        leaving that silent."""
+        if not refs:
+            print(f"  submesh {submesh_idx}: no texture reference hashes "
+                 f"found for it at all (untextured — not a matching problem, "
+                 f"this submesh never named a texture in the first place)")
+            return None
         if not texture_index:
+            print(f"  submesh {submesh_idx}: wants {', '.join(f'{h:08x}' for h in refs)}, "
+                 f"but no texture_index was built at all (no texture chunks "
+                 f"found anywhere under the unit folder)")
             return None
         h = next((h for h in refs if h in texture_index), None)
         if h is None:
+            print(f"  submesh {submesh_idx}: wants {', '.join(f'{h:08x}' for h in refs)}, "
+                 f"none of those hashes are in the texture index — the actual "
+                 f"texture chunk this submesh references isn't in the "
+                 f"extracted unit folder at all (likely another external "
+                 f"dependency; check this unit's manifest.tsv 'source' "
+                 f"column for these specific hashes, or re-run Container "
+                 f"info on whatever file it points to)")
             return None
         if h in img_cache:
+            print(f"  submesh {submesh_idx}: matched {h:08x} (already embedded, reused)")
             return img_cache[h]
         img = Path(texture_index[h])
         if not img.exists() or img.suffix.lower() != ".png":
-            return None       # GLB embedding needs PNG/JPEG; DDS can't embed
+            print(f"  submesh {submesh_idx}: matched {h:08x} but it's not a "
+                 f"usable PNG ({img}) — DDS can't be embedded in glTF, "
+                 f"this usually means Pillow isn't available in this build")
+            return None
         off, ln = push(img.read_bytes())
         images.append({"bufferView": len(buffer_views), "mimeType": "image/png",
                        "name": img.stem})
@@ -249,6 +275,7 @@ def build_glb(bones, submeshes, mapping, out_path, texture_index=None):
         textures.append({"source": len(images) - 1, "sampler": 0})
         idx = len(textures) - 1
         img_cache[h] = idx
+        print(f"  submesh {submesh_idx}: matched {h:08x} -> {img.name}, embedded")
         return idx
 
     def accessor(data, comp, type_, count, normalized=False,
@@ -265,7 +292,8 @@ def build_glb(bones, submeshes, mapping, out_path, texture_index=None):
         accessors.append(acc)
         return len(accessors) - 1
 
-    for verts, uvs, joints, weights, tris, rigid, refs in submeshes:
+    n_textured = 0
+    for sm_idx, (verts, uvs, joints, weights, tris, rigid, refs) in enumerate(submeshes):
         n = len(verts)
         if rigid:
             nb = nearest_bone(verts, bones)
@@ -288,17 +316,20 @@ def build_glb(bones, submeshes, mapping, out_path, texture_index=None):
         prim = {"attributes": {"POSITION": a_pos, "TEXCOORD_0": a_uv,
                                "JOINTS_0": a_j, "WEIGHTS_0": a_w},
                "indices": a_i}
-        tex = texture_for(refs)
+        tex = texture_for(refs, sm_idx)
         mat = {"name": f"mat{len(materials)}", "doubleSided": True,
                "pbrMetallicRoughness": {"metallicFactor": 0.0,
                                         "roughnessFactor": 1.0}}
         if tex is not None:
             mat["pbrMetallicRoughness"]["baseColorTexture"] = {"index": tex}
+            n_textured += 1
         else:
             mat["pbrMetallicRoughness"]["baseColorFactor"] = [0.8, 0.8, 0.8, 1.0]
         materials.append(mat)
         prim["material"] = len(materials) - 1
         mesh_prims.append(prim)
+    print(f"materials: {n_textured}/{len(submeshes)} submesh(es) textured, "
+         f"{len(submeshes) - n_textured} fell back to grey")
 
     # nodes: locals from world bind matrices (row-major, row-vector
     # convention: W_child = L * W_parent  ->  L = W_c * inv(W_p);

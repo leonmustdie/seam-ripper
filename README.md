@@ -217,4 +217,4 @@ their respective owners. This project is not affiliated with or endorsed by
 them. 
 
 Icon, description image, and all .SVG assets currently used for the icon are 
-created by Mallorie.
+created by [Mallorie](https://github.com/unixfunnies).

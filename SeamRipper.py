@@ -80,11 +80,18 @@ def tool_argv(settings, script, *args):
 
 
 # ----------------------------------------------------------------- settings
+def _bundled(name):
+    """Path to a bundled binary (luac51.exe, unluac.jar): flat in a frozen
+    build (spec datas dest is always "."), inside tools/ when run from
+    source (see tool_argv's docstring for why these differ)."""
+    return BUNDLE / name if FROZEN else BUNDLE / "tools" / name
+
+
 def load_settings():
     d = {
         "python": sys.executable,
-        "luac": str(BUNDLE / "tools" / "luac51.exe"),
-        "jar": str(BUNDLE / "tools" / "unluac.jar"),
+        "luac": str(_bundled("luac51.exe")),
+        "jar": str(_bundled("unluac.jar")),
         "stage": "",
         "last_dir": str(APPDIR),
     }
@@ -95,8 +102,8 @@ def load_settings():
             pass
     # saved paths from another machine/install: fall back to the bundle
     for key, name in (("luac", "luac51.exe"), ("jar", "unluac.jar")):
-        if not Path(d[key]).exists() and (BUNDLE / "tools" / name).exists():
-            d[key] = str(BUNDLE / "tools" / name)
+        if not Path(d[key]).exists() and _bundled(name).exists():
+            d[key] = str(_bundled(name))
     if FROZEN or not Path(d["python"]).exists():
         d["python"] = sys.executable
     return d

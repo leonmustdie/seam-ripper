@@ -46,7 +46,8 @@ try:
 except ImportError:
     HAVE_PIL = False
 
-TEX_TYPE_TAG = b"\x34\x20\x00\x07"
+TEX_TYPE_TAGS = (b"\x14\x20\x00\x07",     # NB1 texture (14200007)
+                 b"\x34\x20\x00\x07")     # PiP texture (34200007)
 MESH_TYPE_TAG = b"\x34\x20\x00"          # mesh chunks start 00000020 ... 34 20 00 04
 XENOS_FORMATS = {0x12: ("DXT1", 8), 0x13: ("DXT3", 16), 0x14: ("DXT5", 16)}
 
@@ -96,7 +97,7 @@ def dds_bytes(w, h, fourcc, payload):
 
 
 def is_texture_chunk(data):
-    return len(data) >= 0x40 and data[:4] == TEX_TYPE_TAG
+    return len(data) >= 0x40 and data[:4] in TEX_TYPE_TAGS
 
 
 def convert_texture(data, out_base):

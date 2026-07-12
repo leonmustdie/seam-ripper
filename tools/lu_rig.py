@@ -232,11 +232,52 @@ def build_glb(bones, submeshes, mapping, out_path, texture_index=None):
         more = "" if len(texture_index) <= 12 else f" (+{len(texture_index) - 12} more)"
         print(f"texture index: {len(texture_index)} available: {avail}{more}")
 
+    def _colorfulness(png_path):
+        """Rough R/G/B divergence check: near-0 means the image is
+        effectively greyscale (a lightmap/AO/shadow mask, not a diffuse
+        color texture). Sampled sparsely — this is a heuristic to break
+        ties among several texture candidates, not a real decoder."""
+        try:
+            import zlib as _zlib
+            d = png_path.read_bytes()
+            pos, w = 8, None
+            idat = b""
+            while pos < len(d):
+                ln = struct.unpack_from(">I", d, pos)[0]
+                tag = d[pos + 4:pos + 8]
+                chunk = d[pos + 8:pos + 8 + ln]
+                if tag == b"IHDR":
+                    w, h = struct.unpack_from(">2I", chunk, 0)
+                elif tag == b"IDAT":
+                    idat += chunk
+                elif tag == b"IEND":
+                    break
+                pos += 12 + ln
+            raw = _zlib.decompress(idat)
+            stride = w * 4
+            diffs, prev = [], [0] * stride
+            i = 0
+            for _y in range(h):
+                ftype = raw[i]; i += 1
+                row = bytearray(raw[i:i + stride]); i += stride
+                if ftype == 2:                          # Up (the common case)
+                    for x in range(stride):
+                        row[x] = (row[x] + prev[x]) & 0xFF
+                prev = list(row)
+                for x in range(0, stride, 4 * 7):        # sparse sample
+                    r, g, b = row[x], row[x + 1], row[x + 2]
+                    diffs.append(abs(r - g) + abs(g - b) + abs(r - b))
+            return sum(diffs) / max(1, len(diffs))
+        except Exception:
+            return -1                                    # couldn't check; don't crash the export over it
+
     def texture_for(refs, submesh_idx):
-        """First texture_index hit among a submesh's ref hashes, embedded
+        """Best texture_index hit among a submesh's ref hashes, embedded
         (PNG bytes pushed into the shared buffer) at most once per image.
-        Prints exactly why a submesh ends up untextured, rather than
-        leaving that silent."""
+        When more than one candidate ref resolves to a real PNG, prefers
+        whichever one actually looks like a color image over a greyscale
+        one (lightmaps/AO/shadow masks are real texture references too,
+        but they're not what should go in baseColorTexture)."""
         if not refs:
             print(f"  submesh {submesh_idx}: no texture reference hashes "
                  f"found for it at all (untextured — not a matching problem, "
@@ -247,8 +288,8 @@ def build_glb(bones, submeshes, mapping, out_path, texture_index=None):
                  f"but no texture_index was built at all (no texture chunks "
                  f"found anywhere under the unit folder)")
             return None
-        h = next((h for h in refs if h in texture_index), None)
-        if h is None:
+        candidates = [h for h in refs if h in texture_index]
+        if not candidates:
             print(f"  submesh {submesh_idx}: wants {', '.join(f'{h:08x}' for h in refs)}, "
                  f"none of those hashes are in the texture index — the actual "
                  f"texture chunk this submesh references isn't in the "
@@ -257,8 +298,24 @@ def build_glb(bones, submeshes, mapping, out_path, texture_index=None):
                  f"column for these specific hashes, or re-run Container "
                  f"info on whatever file it points to)")
             return None
+        if len(candidates) == 1:
+            h = candidates[0]
+            chosen_reason = "only candidate"
+        else:
+            scored = []
+            for h in candidates:
+                img = Path(texture_index[h])
+                score = _colorfulness(img) if img.suffix.lower() == ".png" else -1
+                scored.append((score, h))
+            print(f"  submesh {submesh_idx}: {len(candidates)} texture candidates "
+                 f"{', '.join(f'{h:08x}(color-score {s:.1f})' for s, h in scored)}"
+                 f" — picking the highest score (0 or near-0 usually means a "
+                 f"lightmap/AO/shadow mask, not the diffuse)")
+            scored.sort(reverse=True)
+            h = scored[0][1]
+            chosen_reason = f"highest color-score of {len(candidates)} candidates"
         if h in img_cache:
-            print(f"  submesh {submesh_idx}: matched {h:08x} (already embedded, reused)")
+            print(f"  submesh {submesh_idx}: matched {h:08x} ({chosen_reason}, already embedded, reused)")
             return img_cache[h]
         img = Path(texture_index[h])
         if not img.exists() or img.suffix.lower() != ".png":
@@ -275,7 +332,7 @@ def build_glb(bones, submeshes, mapping, out_path, texture_index=None):
         textures.append({"source": len(images) - 1, "sampler": 0})
         idx = len(textures) - 1
         img_cache[h] = idx
-        print(f"  submesh {submesh_idx}: matched {h:08x} -> {img.name}, embedded")
+        print(f"  submesh {submesh_idx}: matched {h:08x} ({chosen_reason}) -> {img.name}, embedded")
         return idx
 
     def accessor(data, comp, type_, count, normalized=False,

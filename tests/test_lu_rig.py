@@ -36,6 +36,23 @@ def _tiny_png(rgb=(255, 0, 0)):
     return sig + ihdr + idat + chunk(b"IEND", b"")
 
 
+def _patterned_png(pixel_fn, w=8, h=8):
+    """An 8x8 RGBA PNG with a real per-pixel pattern, for testing the
+    colorfulness heuristic, which needs more than one pixel to say
+    anything meaningful."""
+    def chunk(tag, data):
+        return (struct.pack(">I", len(data)) + tag + data
+                + struct.pack(">I", zlib.crc32(tag + data)))
+    raw = bytearray()
+    for y in range(h):
+        raw.append(0)   # no filter
+        for x in range(w):
+            raw += bytes(pixel_fn(x, y))
+    ihdr = chunk(b"IHDR", struct.pack(">2I5B", w, h, 8, 6, 0, 0, 0))
+    idat = chunk(b"IDAT", zlib.compress(bytes(raw)))
+    return b"\x89PNG\r\n\x1a\n" + ihdr + idat + chunk(b"IEND", b"")
+
+
 def _submesh(refs):
     return (VERTS, UVS, JOINTS, WEIGHTS, TRIS, True, refs)
 
@@ -118,6 +135,42 @@ class TestTextureEmbedding(unittest.TestCase):
         self.assertIn("baseColorFactor",
                       gltf["materials"][0]["pbrMetallicRoughness"])
         self.assertNotIn("images", gltf)
+
+    def test_prefers_color_texture_over_greyscale_candidate(self):
+        """The actual incident this exists for: a submesh referencing more
+        than one texture (a real diffuse plus a greyscale lightmap/AO
+        mask), where blindly taking the first resolved candidate picked
+        the lightmap and produced a GLB that looked completely untextured
+        even though a real image was correctly bound. Order must not
+        matter — greyscale-first should still resolve to the color one."""
+        lightmap = self.tmp_path / "lightmap.png"
+        lightmap.write_bytes(_patterned_png(
+            lambda x, y: (100 + x * 5, 100 + x * 5, 100 + x * 5, 255)))
+        diffuse = self.tmp_path / "diffuse.png"
+        diffuse.write_bytes(_patterned_png(
+            lambda x, y: (200, 60, 30, 255) if (x + y) % 2 else (40, 90, 180, 255)))
+
+        lightmap_hash, diffuse_hash = 0xAAAA, 0xBBBB
+        # greyscale ref listed FIRST — this is what actually broke before
+        subs = [_submesh([lightmap_hash, diffuse_hash])]
+        out = self.tmp_path / "picks_diffuse.glb"
+        lu_rig.build_glb(BONES, subs, MAPPING, str(out), texture_index={
+            lightmap_hash: str(lightmap), diffuse_hash: str(diffuse)})
+        gltf, _ = _parse_glb(out)
+        self.assertEqual(gltf["images"][0]["name"], "diffuse")
+
+    def test_single_candidate_unaffected_by_scoring(self):
+        """Only one resolvable candidate: no scoring needed, must still
+        just use it, same as before this fix existed."""
+        png = self.tmp_path / "only.png"
+        png.write_bytes(_tiny_png())
+        h = 0xCCCC
+        subs = [_submesh([h])]
+        out = self.tmp_path / "single.glb"
+        lu_rig.build_glb(BONES, subs, MAPPING, str(out),
+                         texture_index={h: str(png)})
+        gltf, _ = _parse_glb(out)
+        self.assertEqual(gltf["images"][0]["name"], "only")
 
 
 if __name__ == "__main__":

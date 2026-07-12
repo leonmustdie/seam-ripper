@@ -82,6 +82,57 @@ real ones from `npc.lua` and synthetic adversarial ones. If the
 decompiler ever produces a wrapped call, this is the first place to
 look, not a bug in the matching logic necessarily.
 
+## Textures extract fine but conversion/embedding finds nothing, no error
+
+Real incident, not hypothetical: `is_texture_chunk()` (`lu_convert.py`)
+only checked for PiP's texture type tag (`0x34200007`). NB1's texture
+type (`0x14200007`) was never in the check at all, for the entire
+lifetime of that function, across every tool that imports it
+(`lu_convert.py`'s own bulk convert, `lu_rig.py`'s texture embedding,
+`pip_dump.py`). Every NB1 texture chunk silently fell through as "not a
+texture," no error, no warning, just absent output. It went unnoticed
+because nobody had run NB1 texture conversion against real data until
+live testing surfaced it as: raw `.bin` chunks genuinely present in the
+extracted `texture\` folder, but the converted-textures output folder
+never gets created at all.
+
+If a texture-consuming step produces no output and no error even though
+the raw extracted chunks are confirmed present: check `is_texture_chunk`
+recognizes the type tag for the game you're actually working with, don't
+assume "no error" means "nothing to convert." `tests/test_lu_convert.py`
+has the permanent regression for this specific incident; if a similar
+silent-gap bug turns up elsewhere, that's the pattern to replicate, not
+just a manual fix.
+
+## A rig export has a real embedded texture but still looks completely untextured
+
+The hardest one of these to diagnose, because every individual check
+passes: the GLB has a valid `baseColorTexture`, a real embedded PNG with
+a correct signature, sane non-degenerate UVs, and the material is bound
+to the right primitive. Everything *structural* is correct. The actual
+problem: the submesh referenced more than one texture (a real diffuse
+plus something like a lightmap, AO map, or shadow mask), and the wrong
+one got embedded, a real image, just not a color one. A greyscale
+gradient applied as `baseColorTexture` renders almost identically to no
+texture at all in every viewport mode, which is exactly why this looks
+indistinguishable from "the embedding failed" without actually decoding
+the pixels.
+
+Confirmed by checking the R/G/B channel correlation of the extracted
+image: 1.000 correlation (R≈G≈B at every pixel) means it's greyscale
+regardless of what the file extension says.
+
+`lu_rig.py` now scores every resolvable candidate for a submesh, not
+just the first one, and picks whichever looks most like a real color
+image (`tests/test_lu_rig.py`'s
+`test_prefers_color_texture_over_greyscale_candidate` is the permanent
+regression). This is a heuristic, not a format-guaranteed answer, it
+could still pick wrong for a submesh whose real diffuse is itself mostly
+monochrome. If a rig comes out looking flat again after this fix: check
+the log's per-submesh line, it now prints every candidate hash and its
+color-score, so which one got picked and why is visible directly instead
+of needing this whole investigation again.
+
 ## The built EXE behaves differently than source-run testing
 
 This is what shipped in v1.0.0. The two run through genuinely different

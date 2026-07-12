@@ -212,6 +212,31 @@ def nearest_bone(verts, bones):
     return int(np.argmin(np.linalg.norm(bonepos - c, axis=1)))
 
 
+def smooth_normals(verts, tris):
+    """Per-vertex normals, area-weighted average of adjacent face normals
+    — this is what Blender's own 'Shade Smooth' produces, computed here
+    at export time instead of needing a manual click after import. Writing
+    these as the GLB's NORMAL attribute matters because glTF has no
+    separate smooth/flat toggle: omit NORMAL and every viewer, Blender
+    included, falls back to flat per-face normals on import, which is
+    exactly the faceted look 'Shade Smooth' was fixing by hand."""
+    v = np.asarray(verts, dtype=np.float64)
+    normals = np.zeros_like(v)
+    if len(tris):
+        idx = np.asarray(tris, dtype=np.int64)
+        e1 = v[idx[:, 1]] - v[idx[:, 0]]
+        e2 = v[idx[:, 2]] - v[idx[:, 0]]
+        face_n = np.cross(e1, e2)          # magnitude ~ 2x triangle area,
+                                            # so summing these area-weights
+                                            # the average automatically
+        for k in range(3):
+            np.add.at(normals, idx[:, k], face_n)
+    lengths = np.linalg.norm(normals, axis=1, keepdims=True)
+    lengths[lengths == 0] = 1.0
+    normals = normals / lengths
+    return [tuple(n) for n in normals]
+
+
 # -------------------------------------------------------------------- glb
 
 def build_glb(bones, submeshes, mapping, out_path, texture_index=None,
@@ -421,6 +446,9 @@ def build_glb(bones, submeshes, mapping, out_path, texture_index=None,
         vmax = [max(v[k] for v in verts) for k in range(3)]
         a_pos = accessor(b"".join(struct.pack("<3f", *v) for v in verts),
                          5126, "VEC3", n, minmax=(vmin, vmax), target=34962)
+        normals = smooth_normals(verts, tris)
+        a_nrm = accessor(b"".join(struct.pack("<3f", *nv) for nv in normals),
+                         5126, "VEC3", n, target=34962)
         a_uv = accessor(b"".join(struct.pack("<2f", u, v) for u, v in uvs),
                         5126, "VEC2", n, target=34962)
         a_j = accessor(b"".join(struct.pack("<4B", *j) for j in joints),
@@ -429,7 +457,7 @@ def build_glb(bones, submeshes, mapping, out_path, texture_index=None,
                        5126, "VEC4", n, target=34962)
         idx = b"".join(struct.pack("<3H", *t) for t in tris)
         a_i = accessor(idx, 5123, "SCALAR", len(tris) * 3, target=34963)
-        prim = {"attributes": {"POSITION": a_pos, "TEXCOORD_0": a_uv,
+        prim = {"attributes": {"POSITION": a_pos, "NORMAL": a_nrm, "TEXCOORD_0": a_uv,
                                "JOINTS_0": a_j, "WEIGHTS_0": a_w},
                "indices": a_i}
         tex = texture_for(refs, sm_idx)

@@ -144,7 +144,7 @@ class TestTextureEmbedding(unittest.TestCase):
         # — the whole point is these two features coexist, neither
         # displaced the other
         attrs = set(gltf["meshes"][0]["primitives"][0]["attributes"])
-        self.assertEqual(attrs, {"POSITION", "TEXCOORD_0", "JOINTS_0", "WEIGHTS_0"})
+        self.assertEqual(attrs, {"POSITION", "NORMAL", "TEXCOORD_0", "JOINTS_0", "WEIGHTS_0"})
         self.assertIn("skins", gltf)
         self.assertEqual(len(gltf["skins"][0]["joints"]), len(BONES))
 
@@ -266,6 +266,97 @@ class TestTextureEmbedding(unittest.TestCase):
                          force_hash=correct_hash)
         gltf, _ = _parse_glb(out)
         self.assertEqual(gltf["images"][0]["name"], "correct")
+
+
+class TestSmoothNormals(unittest.TestCase):
+    """Blender's manual 'Shade Smooth' averages face normals at shared
+    vertices; this proves lu_rig.py now does the same thing at export
+    time, not just that a NORMAL attribute exists.
+
+    Two triangles sharing edge v0-v2, folded out of plane (v3 lifted in
+    Z), so the two faces have genuinely different normals:
+      Tri A = (v0, v1, v2) -> face normal (0, 0, 1)
+      Tri B = (v0, v2, v3) -> face normal (1, -1, 1) normalized
+
+    v1 is touched only by A, v3 only by B: their normals must equal
+    that single face's normal exactly, unaveraged. v0 and v2 are
+    touched by both: their normals must be identical to each other
+    AND equal to the normalized sum of both face normals, distinct
+    from either face normal alone. That last part is the actual proof
+    of smoothing — a flat-shaded (or buggy) implementation would give
+    v0 and v2 some single face's normal instead, or leave them
+    inconsistent with each other.
+    """
+
+    def test_shared_vertices_get_averaged_normal(self):
+        verts = [(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 1)]
+        tris = [(0, 1, 2), (0, 2, 3)]
+        normals = lu_rig.smooth_normals(verts, tris)
+
+        def normalize(v):
+            n = sum(c * c for c in v) ** 0.5
+            return tuple(c / n for c in v)
+
+        # raw (unnormalized) cross products — smooth_normals area-weights by
+        # summing these before normalizing, same as Blender's own smooth
+        # shading, so the expected value here must do the same, not
+        # pre-normalize each face first
+        face_a_raw = (0, 0, 1)          # cross((1,0,0), (1,1,0))
+        face_b_raw = (1, -1, 1)         # cross((1,1,0), (0,1,1))
+        face_a = normalize(face_a_raw)
+        face_b = normalize(face_b_raw)
+        expected_shared = normalize(tuple(a + b for a, b in zip(face_a_raw, face_b_raw)))
+
+        def close(a, b, tol=1e-6):
+            return all(abs(x - y) < tol for x, y in zip(a, b))
+
+        self.assertTrue(close(normals[1], face_a),
+                        f"v1 (only touched by face A) should be exactly A's "
+                        f"normal {face_a}, got {normals[1]}")
+        self.assertTrue(close(normals[3], face_b),
+                        f"v3 (only touched by face B) should be exactly B's "
+                        f"normal {face_b}, got {normals[3]}")
+        self.assertTrue(close(normals[0], expected_shared),
+                        f"v0 (shared by both faces) should be the averaged "
+                        f"normal {expected_shared}, got {normals[0]}")
+        self.assertTrue(close(normals[2], expected_shared),
+                        f"v2 (shared by both faces) should be the averaged "
+                        f"normal {expected_shared}, got {normals[2]}")
+        self.assertTrue(close(normals[0], normals[2]),
+                        "v0 and v2 are both shared by exactly the same two "
+                        "faces, they must get the identical normal")
+        # the actual proof this is smoothing, not flat shading: the shared
+        # vertices' normal must differ from EITHER individual face normal
+        self.assertFalse(close(normals[0], face_a),
+                         "v0 got face A's normal alone — not averaged")
+        self.assertFalse(close(normals[0], face_b),
+                         "v0 got face B's normal alone — not averaged")
+
+    def test_normals_are_unit_length(self):
+        verts = [(0, 0, 0), (2, 0, 0), (0, 3, 0)]   # deliberately non-unit edges
+        tris = [(0, 1, 2)]
+        normals = lu_rig.smooth_normals(verts, tris)
+        for n in normals:
+            length = sum(c * c for c in n) ** 0.5
+            self.assertAlmostEqual(length, 1.0, places=6)
+
+    def test_normal_attribute_present_in_built_glb(self):
+        """End-to-end: the attribute actually lands in the file, with the
+        right accessor type."""
+        verts = [(0, 0, 0), (1, 0, 0), (0, 1, 0)]
+        tris = [(0, 1, 2)]
+        sub = (verts, [(0, 0), (1, 0), (0, 1)], [[0, 0, 0, 0]] * 3,
+              [[1, 0, 0, 0]] * 3, tris, True, [])
+        bones = [{"parent": -1, "world": np.eye(4).tolist()}]
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "normals_test.glb"
+            lu_rig.build_glb(bones, [sub], [0], str(out))
+            gltf, _ = _parse_glb(out)
+            attrs = gltf["meshes"][0]["primitives"][0]["attributes"]
+            self.assertIn("NORMAL", attrs)
+            acc = gltf["accessors"][attrs["NORMAL"]]
+            self.assertEqual(acc["type"], "VEC3")
+            self.assertEqual(acc["count"], 3)
 
 
 if __name__ == "__main__":

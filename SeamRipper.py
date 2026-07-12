@@ -721,6 +721,13 @@ class Main(QMainWindow):
              "fields": [{"label": "inputs (files/folder)", "kind": "paths", "required": True},
                         {"label": "out folder", "kind": "folder", "flag": "-o"},
                         {"label": "OBJ only (skip GLB)", "kind": "flag", "flag": "--no-glb"}]},
+            {"title": "Rigged character GLB", "script": "lu_rig.py",
+             "help": "Export a skinned character/costume piece (skeleton + "
+                     "weights) from an extracted unit directory. Chunk-type "
+                     "driven, not game-specific — works on NB1 or PiP units.",
+             "fields": [{"label": "extracted unit folder", "kind": "paths", "required": True},
+                        {"label": "out .glb", "kind": "savefile", "flag": "-o",
+                         "patterns": "glTF binary (*.glb);;All (*.*)", "required": True}]},
             {"title": "Sound: bank", "script": "lu_sound.py", "sub": "bank",
              "fields": [{"label": "inputs", "kind": "paths", "required": True},
                         {"label": "out folder", "kind": "folder", "flag": "-o"}]},

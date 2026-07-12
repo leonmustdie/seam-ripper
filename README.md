@@ -36,6 +36,7 @@ Every tool also runs standalone from the repo root, e.g. `python tools/nblua.py 
 |---|---|---|
 | Java (JRE 8+) | Lua decompilation via `unluac.jar` | must be on PATH; the `luadec` backend does not need it |
 | Pillow (`pip install pillow`) | PNG texture output, textures embedded in GLB | without it you still get DDS |
+| numpy (`pip install numpy`) | Rigged character GLB export (`lu_rig.py`) | bind-pose matrix math; without it that one tool fails to import |
 | PySide6 | the GUI only | CLI tools are stdlib-only |
 
 The release EXE bundles Python, PySide6, and Pillow; you still need Java installed for the unluac backend.

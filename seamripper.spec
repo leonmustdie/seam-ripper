@@ -67,6 +67,9 @@ hiddenimports = [
     "subprocess", "shutil", "struct", "runpy", "math", "json", "shlex",
     "importlib", "io", "re", "base64", "hashlib", "binascii",
     "dataclasses", "enum",
+    "numpy",  # lu_rig.py's bind-pose matrix math; third-party, PyInstaller's
+              # Analysis never sees it since tool scripts bundle as data
+              # files (see comment below), so it needs to be named explicitly.
 ]
 # the tool scripts themselves, so import_module(name) resolves in the frozen
 # app and PyInstaller follows their imports (naughty_lu, lu_convert, etc.)

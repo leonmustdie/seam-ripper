@@ -21,7 +21,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from lu_convert import (_find_buffer_quads, _read_trailer, _decode_strips,
-                        _decode_list, _layout_candidates, is_mesh_chunk)
+                        _decode_list, _layout_candidates, is_mesh_chunk,
+                        is_texture_chunk, convert_texture, _find_texture_refs)
 
 
 # ---------------------------------------------------------------- skeleton
@@ -101,11 +102,17 @@ def bone_label(i, bones):
 
 def extract_skinned_mesh(d):
     """Returns list of submeshes: (positions, uvs, raw_skin_indices u8x4,
-    weights f4, triangles, is_rigid). Raw indices are in the mesh's local
-    palette space; use solve_palette() to map them to skeleton bones."""
+    weights f4, triangles, is_rigid, texture_refs). Raw indices are in the
+    mesh's local palette space; use solve_palette() to map them to
+    skeleton bones. texture_refs is the list of CRC32 hashes found in the
+    descriptor window between this buffer and the previous one (same
+    scan lu_convert.convert_mesh uses for material binding)."""
     quads = _find_buffer_quads(d)
     out = []
+    prev_field = 0x20
     for field_off, vo, vs, io_, isz in quads:
+        refs = _find_texture_refs(d, prev_field, field_off)
+        prev_field = io_ + isz
         tr = _read_trailer(d, io_, isz)
         if tr is None:
             continue
@@ -142,7 +149,7 @@ def extract_skinned_mesh(d):
                 weights.append([c / t for c in w])
         tris = _decode_list(raw, n) if prim == 4 else _decode_strips(raw, n)
         if tris:
-            out.append((verts, uvs, joints, weights, tris, wn == 0))
+            out.append((verts, uvs, joints, weights, tris, wn == 0, refs))
     return out
 
 
@@ -157,7 +164,7 @@ def solve_palette(submeshes, bones):
     import numpy as np
     bonepos = np.array([b["world"][3][:3] for b in bones])
     acc = {}
-    for verts, _, joints, weights, _, rigid in submeshes:
+    for verts, _, joints, weights, _, rigid, _ in submeshes:
         if rigid:
             continue
         for v, j4, w4 in zip(verts, joints, weights):
@@ -207,7 +214,7 @@ def nearest_bone(verts, bones):
 
 # -------------------------------------------------------------------- glb
 
-def build_glb(bones, submeshes, mapping, out_path):
+def build_glb(bones, submeshes, mapping, out_path, texture_index=None):
     bin_parts = []
 
     def push(data):
@@ -217,6 +224,32 @@ def build_glb(bones, submeshes, mapping, out_path):
         return off, len(data)
 
     accessors, buffer_views, mesh_prims = [], [], []
+    images, textures, samplers, materials = [], [], [], []
+    img_cache = {}   # hash -> texture index, so a reused texture embeds once
+
+    def texture_for(refs):
+        """First texture_index hit among a submesh's ref hashes, embedded
+        (PNG bytes pushed into the shared buffer) at most once per image."""
+        if not texture_index:
+            return None
+        h = next((h for h in refs if h in texture_index), None)
+        if h is None:
+            return None
+        if h in img_cache:
+            return img_cache[h]
+        img = Path(texture_index[h])
+        if not img.exists() or img.suffix.lower() != ".png":
+            return None       # GLB embedding needs PNG/JPEG; DDS can't embed
+        off, ln = push(img.read_bytes())
+        images.append({"bufferView": len(buffer_views), "mimeType": "image/png",
+                       "name": img.stem})
+        buffer_views.append({"buffer": 0, "byteOffset": off, "byteLength": ln})
+        if not samplers:
+            samplers.append({})
+        textures.append({"source": len(images) - 1, "sampler": 0})
+        idx = len(textures) - 1
+        img_cache[h] = idx
+        return idx
 
     def accessor(data, comp, type_, count, normalized=False,
                  minmax=None, target=None):
@@ -232,7 +265,7 @@ def build_glb(bones, submeshes, mapping, out_path):
         accessors.append(acc)
         return len(accessors) - 1
 
-    for verts, uvs, joints, weights, tris, rigid in submeshes:
+    for verts, uvs, joints, weights, tris, rigid, refs in submeshes:
         n = len(verts)
         if rigid:
             nb = nearest_bone(verts, bones)
@@ -252,9 +285,20 @@ def build_glb(bones, submeshes, mapping, out_path):
                        5126, "VEC4", n, target=34962)
         idx = b"".join(struct.pack("<3H", *t) for t in tris)
         a_i = accessor(idx, 5123, "SCALAR", len(tris) * 3, target=34963)
-        mesh_prims.append({"attributes": {"POSITION": a_pos, "TEXCOORD_0": a_uv,
-                                          "JOINTS_0": a_j, "WEIGHTS_0": a_w},
-                           "indices": a_i})
+        prim = {"attributes": {"POSITION": a_pos, "TEXCOORD_0": a_uv,
+                               "JOINTS_0": a_j, "WEIGHTS_0": a_w},
+               "indices": a_i}
+        tex = texture_for(refs)
+        mat = {"name": f"mat{len(materials)}", "doubleSided": True,
+               "pbrMetallicRoughness": {"metallicFactor": 0.0,
+                                        "roughnessFactor": 1.0}}
+        if tex is not None:
+            mat["pbrMetallicRoughness"]["baseColorTexture"] = {"index": tex}
+        else:
+            mat["pbrMetallicRoughness"]["baseColorFactor"] = [0.8, 0.8, 0.8, 1.0]
+        materials.append(mat)
+        prim["material"] = len(materials) - 1
+        mesh_prims.append(prim)
 
     # nodes: locals from world bind matrices (row-major, row-vector
     # convention: W_child = L * W_parent  ->  L = W_c * inv(W_p);
@@ -291,6 +335,7 @@ def build_glb(bones, submeshes, mapping, out_path):
         "scenes": [{"nodes": roots + [mesh_node]}],
         "nodes": nodes,
         "meshes": [{"primitives": mesh_prims}],
+        "materials": materials,
         "skins": [{"inverseBindMatrices": a_ibm,
                    "joints": list(range(len(bones))),
                    "skeleton": roots[0]}],
@@ -298,6 +343,10 @@ def build_glb(bones, submeshes, mapping, out_path):
         "bufferViews": buffer_views,
         "buffers": [{"byteLength": sum(len(b) for b in bin_parts)}],
     }
+    if images:
+        gltf["images"] = images
+        gltf["textures"] = textures
+        gltf["samplers"] = samplers
     js = json.dumps(gltf, separators=(",", ":")).encode()
     js += b" " * ((-len(js)) % 4)
     bb = b"".join(bin_parts)
@@ -349,7 +398,33 @@ def main():
     if mapping is None:
         sys.exit("could not solve skin palette")
     print(f"solved palette: {len(mapping)} skin slots -> skeleton bones")
-    out = build_glb(skel, subs, mapping, args.out)
+
+    # textures: convert every texture chunk in the unit, index by the hash
+    # recovered from its filename (naughty_lu.py extract names chunks
+    # NNNN_<hash-or-name>), same convention lu_convert.py's main() uses.
+    tex_dir = Path(args.out).parent / (Path(args.out).stem + "_textures")
+    tex_index = {}
+    tex_paths = sorted(unit.rglob("*.bin"))
+    n_tex = 0
+    for p in tex_paths:
+        d = p.read_bytes()
+        if not is_texture_chunk(d):
+            continue
+        tex_dir.mkdir(parents=True, exist_ok=True)
+        written = convert_texture(d, tex_dir / p.stem)
+        img = next((w for w in written if w.suffix == ".png"), None)
+        if img:
+            tail = p.stem.split("_", 1)[-1]
+            try:
+                tex_index[int(tail, 16)] = img
+            except ValueError:
+                import zlib
+                tex_index[zlib.crc32(tail.lower().encode()) & 0xFFFFFFFF] = img
+            n_tex += 1
+    if n_tex:
+        print(f"textures: {n_tex} converted to {tex_dir}")
+
+    out = build_glb(skel, subs, mapping, args.out, texture_index=tex_index)
     print(f"wrote {out}")
 
 

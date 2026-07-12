@@ -68,12 +68,12 @@ Either failing deletes the just-written output and Ship exits nonzero with
 the specific reason. Run the same check on any `.lu` on disk, without
 shipping anything, with:
 
-    python nblua.py verify path\to\file.lu
+    python tools/nblua.py verify path\to\file.lu
 
 `lzxverify`/`lzxverify.exe` must be built and present next to the scripts —
-see `lzxverify_src/build.sh` (source is libmspack, LGPL 2.1; full licensing
-notice in `lzxverify_src/NOTICE.md`, license text in
-`lzxverify_src/COPYING.LIB`). Without it, Ship refuses everything; there's
+see `tools/lzxverify_src/build.sh` (source is libmspack, LGPL 2.1; full licensing
+notice in `tools/lzxverify_src/NOTICE.md`, license text in
+`tools/lzxverify_src/COPYING.LIB`). Without it, Ship refuses everything; there's
 no reduced-checking fallback mode.
 
 ## Tests
@@ -96,6 +96,10 @@ platform, rather than failing the run.
 
 ## Install
 
-Keep all the toolkit `.py` files together in one folder (your existing
-`tools/`), with `luac51.exe` and `unluac.jar` alongside. SeamRipper.py,
-nblua.py, and bccmp.py go in the same folder.
+`SeamRipper.py` (the GUI entry point) and the branding/build files
+(`seamripper.spec`, `build_exe.bat`, icons) sit at the repo root. Every tool
+script and bundled third-party binary (`nblua.py`, `naughty_lu.py`,
+`luac51.exe`, `unluac.jar`, `lzxverify`, etc.) lives in `tools/` alongside it.
+Keep that pairing intact, `SeamRipper.py` resolves everything else relative
+to its own location plus `tools/`, both when run from source and in a built
+EXE.

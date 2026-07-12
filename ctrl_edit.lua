@@ -1,5 +1,0 @@
-GetCharacterControllerComponent(__this__):GetCharacterDescriptor():SupportLockOn(true)
-GetCharacterControllerComponent(__this__):GetCharacterDescriptor():SupportChargeAttack(true)
-GetCharacterControllerComponent(__this__):GetCharacterDescriptor():SupportStealthKill(true)
-GetCharacterControllerComponent(__this__):GetCharacterDescriptor():SupportPowerAttack(true)
-GetCharacterControllerComponent(__this__):GetCharacterDescriptor():SupportFinishingMove(true)

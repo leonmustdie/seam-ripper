@@ -19,7 +19,7 @@ An updated version of the tools seen from [my original .lu decompilation and doc
 
 ## Getting it
 
-**Release build (no Python needed):** download the latest release zip, extract it anywhere, run `build_exe.bat`. `SeamRipper.exe`. The tool scripts, `luac51.exe`, `luadec.exe`, and `unluac.jar` are bundled inside the folder.
+**Release build (no Python needed):** download the latest release zip, extract it anywhere, run `SeamRipper.exe`. The tool scripts (now in `tools/`), `luac51.exe`, `luadec.exe`, and `unluac.jar` are bundled inside the folder.
 
 **From source:**
 
@@ -28,7 +28,7 @@ pip install PySide6 pillow
 python SeamRipper.py
 ```
 
-Every tool also runs standalone, e.g. `python nblua.py list game.lu`.
+Every tool also runs standalone from the repo root, e.g. `python tools/nblua.py list game.lu`.
 
 ### Requirements
 
@@ -118,7 +118,7 @@ Up-axis varies by asset (characters are Y-up, some props Z-up); rotate in your D
 
 ## Command-line reference
 
-Every tool prints full usage with `--help`. In a release build, run tools through the EXE: `SeamRipper.exe --tool <script.py> <args>`.
+Every tool prints full usage with `--help`. From source, scripts live in `tools/` (`python tools/nblua.py --help`). In a release build, run tools through the EXE: `SeamRipper.exe --tool <script.py> <args>` — the bundle stays flat internally regardless of the repo's `tools/` layout, so this invocation is unchanged.
 
 ### Primary tools
 
@@ -156,8 +156,8 @@ These are the building blocks the primary tools compose; they are useful on thei
 * `lzxverify` / `lzxverify.exe`: independent LZX decoder used to verify every
   rebuilt container, built from [libmspack](https://github.com/kyz/libmspack)
   (LGPL 2.1) by Stuart Caie and contributors. Source, license text, and build
-  instructions are bundled in `lzxverify_src/`; full notice in
-  `lzxverify_src/NOTICE.md`.
+  instructions are bundled in `tools/lzxverify_src/`; full notice in
+  `tools/lzxverify_src/NOTICE.md`.
 
 ---
 

@@ -14,7 +14,7 @@ from pathlib import Path
 
 if __name__ == "__main__":
     here = Path(__file__).resolve().parent
-    sys.path.insert(0, str(here.parent))
+    sys.path.insert(0, str(here.parent / "tools"))
     loader = unittest.TestLoader()
     suite = loader.discover(str(here), pattern="test_*.py")
     result = unittest.TextTestRunner(verbosity=2).run(suite)

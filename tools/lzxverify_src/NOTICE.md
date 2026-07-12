@@ -76,6 +76,7 @@ Edit `lzxd.c` or `system.c` in this folder, then from inside it:
     x86_64-w64-mingw32-gcc -DDEBUG=0 -I. -o ../lzxverify.exe \
       lzxverify.c lzxd.c system.c -static                    # Windows, cross-compiled
 
-Replace the binary Seam Ripper already has at the repo root with the result.
+Replace the binary Seam Ripper already has in `tools/` (one level up from
+this folder) with the result.
 `verify_lzx.py`'s `find_verifier()` picks whichever one matches the current
 platform by filename, nothing else needs to change.

@@ -69,18 +69,22 @@ SETTINGS_PATH = APPDIR / "seamripper_settings.json"
 
 
 def tool_argv(settings, script, *args):
-    """argv to run one of the toolkit scripts, source-run or frozen."""
+    """argv to run one of the toolkit scripts, source-run or frozen.
+    Source-run: scripts live in tools/ (see seamripper.spec's TOOLS_DIR).
+    Frozen: PyInstaller bundles everything flat regardless of source
+    layout (spec datas dest is always "."), so the frozen branch is
+    unaffected by where tools/ sits in the repo."""
     if FROZEN:
         return [sys.executable, "--tool", script, *args]
-    return [settings["python"], str(BUNDLE / script), *args]
+    return [settings["python"], str(BUNDLE / "tools" / script), *args]
 
 
 # ----------------------------------------------------------------- settings
 def load_settings():
     d = {
         "python": sys.executable,
-        "luac": str(BUNDLE / "luac51.exe"),
-        "jar": str(BUNDLE / "unluac.jar"),
+        "luac": str(BUNDLE / "tools" / "luac51.exe"),
+        "jar": str(BUNDLE / "tools" / "unluac.jar"),
         "stage": "",
         "last_dir": str(APPDIR),
     }
@@ -91,8 +95,8 @@ def load_settings():
             pass
     # saved paths from another machine/install: fall back to the bundle
     for key, name in (("luac", "luac51.exe"), ("jar", "unluac.jar")):
-        if not Path(d[key]).exists() and (BUNDLE / name).exists():
-            d[key] = str(BUNDLE / name)
+        if not Path(d[key]).exists() and (BUNDLE / "tools" / name).exists():
+            d[key] = str(BUNDLE / "tools" / name)
     if FROZEN or not Path(d["python"]).exists():
         d["python"] = sys.executable
     return d

@@ -9,6 +9,10 @@ naughty_lu.py extract, or on individual .bin chunks:
   textures (type 14200007)   ->  .dds (+ .png if Pillow is installed)
   meshes   (type 04000007)   ->  .obj + .mtl, UV-mapped, with materials
                                  bound to the converted textures
+                                 (also handles packed "area" chunks that
+                                 bundle a whole zone's props/vegetation/
+                                 buildings — each object comes out as its
+                                 own submesh)
 
 Usage:
   python3 lu_convert.py <extracted_dir> [-o out_dir]
@@ -49,6 +53,7 @@ except ImportError:
 TEX_TYPE_TAGS = (b"\x14\x20\x00\x07",     # NB1 texture (14200007)
                  b"\x34\x20\x00\x07")     # PiP texture (34200007)
 MESH_TYPE_TAG = b"\x34\x20\x00"          # mesh chunks start 00000020 ... 34 20 00 04
+AREA_PACK_TYPE_TAG = b"\x04\x00\x00\x09"  # packed area geometry (props/veg/buildings)
 XENOS_FORMATS = {0x12: ("DXT1", 8), 0x13: ("DXT3", 16), 0x14: ("DXT5", 16)}
 
 
@@ -136,8 +141,27 @@ def convert_texture(data, out_base):
 # ---------------------------------------------------------------------------
 
 def is_mesh_chunk(data):
-    return (len(data) > 0x1000 and data[:4] == b"\x00\x00\x00\x20"
-            and data[0xc:0xf] == MESH_TYPE_TAG)
+    # Fast path: a standalone model chunk carries the renderable header
+    # (00000020 at +0x00, then the 34 20 00 xx model-class tag at +0x0c).
+    if (len(data) > 0x1000 and data[:4] == b"\x00\x00\x00\x20"
+            and data[0xc:0xf] == MESH_TYPE_TAG):
+        return True
+    # Naughty Bear also bundles a whole area's props, vegetation and
+    # buildings into one big chunk (an optimization that cuts down on draw
+    # batches). That packed chunk is resource type 0x04000009 and starts
+    # with its own class tag (04 00 00 09 ...), NOT the standalone-model
+    # header above, so the tag check walks right past it even though it is
+    # full of geometry. Confirmed on real area*vegetation.lu containers:
+    # one ~10-15 MB 04000009 chunk per area holding ~10-14 unique meshes.
+    if len(data) > 0x1000 and data[:4] == AREA_PACK_TYPE_TAG:
+        return True
+    # Fallback for any other headerless geometry: sniff for actual mesh
+    # buffers. If the chunk holds at least one 4KB-aligned vertex/index
+    # buffer pair backed by a valid submesh trailer, it is geometry we can
+    # extract. This is exactly the structure convert_mesh() harvests, so
+    # detection and conversion always agree — anything is_mesh_chunk()
+    # accepts, convert_mesh() can pull submeshes out of, and vice versa.
+    return _has_mesh_buffers(data)
 
 
 def _decode_strips(raw, nverts):
@@ -293,6 +317,27 @@ def _read_trailer(d, io_, isz):
     decl = _parse_decl_at(d, declp)
     return {"stride": stride, "count": count, "prim": prim,
             "decl": decl}
+
+
+def _has_mesh_buffers(d):
+    """True as soon as the chunk yields one real vertex/index buffer pair.
+
+    Mirrors the validity test in _find_buffer_quads() and additionally
+    requires a valid submesh trailer (via _read_trailer), which is what
+    separates genuine geometry from a false-positive quad. Used to detect
+    packed 'area' chunks that lack the standalone-model header. Early-exits
+    on the first hit so it stays cheap even on the big area chunks (it does
+    not enumerate every buffer the way _find_buffer_quads does)."""
+    if len(d) <= 0x1000:
+        return False
+    for o in range(0, len(d) - 16, 4):
+        vo, vs, io_, isz = struct.unpack_from(">4I", d, o)
+        if (vo and io_ and vo % 0x1000 == 0 and io_ % 0x1000 == 0 and vo < io_
+                and 0 < vs <= io_ - vo and 0 < isz <= len(d) - io_
+                and vs % 4 == 0 and isz % 2 == 0
+                and _read_trailer(d, io_, isz) is not None):
+            return True
+    return False
 
 
 def _parse_decl_at(d, o):

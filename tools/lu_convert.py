@@ -53,7 +53,31 @@ except ImportError:
 TEX_TYPE_TAGS = (b"\x14\x20\x00\x07",     # NB1 texture (14200007)
                  b"\x34\x20\x00\x07")     # PiP texture (34200007)
 MESH_TYPE_TAG = b"\x34\x20\x00"          # mesh chunks start 00000020 ... 34 20 00 04
-AREA_PACK_TYPE_TAG = b"\x04\x00\x00\x09"  # packed area geometry (props/veg/buildings)
+MESH_BLOB_TAG = b"\x04\x00\x00\x09"     # "batched"/packed area chunk (undocumented in
+                                        # LU_FORMAT.md): a whole zone's props,
+                                        # vegetation and buildings merged into
+                                        # one buffer -- how the engine packs
+                                        # multiple submeshes into fewer draw
+                                        # calls. Starts with its own
+                                        # self-referencing {type, 0, hash,
+                                        # type} quad instead of 04000007's
+                                        # header, but the buffer-quad/trailer/
+                                        # declaration encoding inside is
+                                        # identical, so it needs no separate
+                                        # decode path, only recognition.
+MESH_TILE_TAG = b"\x34\x20\x00\x06"     # bare "34 20 00 06" sub-block stored
+                                        # directly as its own top-level record,
+                                        # not wrapped in a 04000009 header --
+                                        # seen on large terrain/building chunks
+                                        # split into several standalone pieces
+                                        # (e.g. naughtyisland_art.lu's 4 terrain
+                                        # tiles). Own small header: {tag,
+                                        # header_size, version, ..., submesh
+                                        # count, ...} but the buffer-quad region
+                                        # after it is the same encoding as
+                                        # everywhere else, so again only
+                                        # recognition is needed, not a new
+                                        # decode path.
 XENOS_FORMATS = {0x12: ("DXT1", 8), 0x13: ("DXT3", 16), 0x14: ("DXT5", 16)}
 
 
@@ -146,20 +170,22 @@ def is_mesh_chunk(data):
     if (len(data) > 0x1000 and data[:4] == b"\x00\x00\x00\x20"
             and data[0xc:0xf] == MESH_TYPE_TAG):
         return True
-    # Naughty Bear also bundles a whole area's props, vegetation and
-    # buildings into one big chunk (an optimization that cuts down on draw
-    # batches). That packed chunk is resource type 0x04000009 and starts
-    # with its own class tag (04 00 00 09 ...), NOT the standalone-model
-    # header above, so the tag check walks right past it even though it is
-    # full of geometry. Confirmed on real area*vegetation.lu containers:
-    # one ~10-15 MB 04000009 chunk per area holding ~10-14 unique meshes.
-    if len(data) > 0x1000 and data[:4] == AREA_PACK_TYPE_TAG:
+    # merged/batched chunk: self-referencing {type, 0, hash, type} header,
+    # both type fields == 04000009 (see MESH_BLOB_TAG above). Confirmed on
+    # real area*vegetation.lu containers: one ~10-15 MB 04000009 chunk per
+    # area holding ~10-14 unique meshes (props/vegetation/buildings).
+    if (len(data) > 0x1000 and data[:4] == MESH_BLOB_TAG
+            and data[0xc:0x10] == MESH_BLOB_TAG):
+        return True
+    # bare sub-block stored as its own top-level record (see MESH_TILE_TAG) --
+    # seen on large terrain chunks split into standalone pieces.
+    if len(data) > 0x1000 and data[:4] == MESH_TILE_TAG:
         return True
     # Fallback for any other headerless geometry: sniff for actual mesh
     # buffers. If the chunk holds at least one 4KB-aligned vertex/index
     # buffer pair backed by a valid submesh trailer, it is geometry we can
     # extract. This is exactly the structure convert_mesh() harvests, so
-    # detection and conversion always agree — anything is_mesh_chunk()
+    # detection and conversion always agree -- anything is_mesh_chunk()
     # accepts, convert_mesh() can pull submeshes out of, and vice versa.
     return _has_mesh_buffers(data)
 
@@ -560,9 +586,9 @@ def write_glb(out_path, submeshes, images=None):
     jroot = {
         "asset": {"version": "2.0", "generator": "Seam Ripper lu_convert"},
         "scene": 0,
-        "scenes": [{"nodes": [0]}],
-        "nodes": [{"mesh": 0, "name": Path(out_path).stem}],
-        "meshes": [{"primitives": []}],
+        "scenes": [{"nodes": []}],
+        "nodes": [],
+        "meshes": [],
         "materials": [],
         "accessors": [],
         "bufferViews": [],
@@ -640,11 +666,19 @@ def write_glb(out_path, submeshes, images=None):
         else:
             mat["pbrMetallicRoughness"]["baseColorFactor"] = [0.8, 0.8, 0.8, 1.0]
         jroot["materials"].append(mat)
-        jroot["meshes"][0]["primitives"].append(
-            {"attributes": attrs, "indices": idx_acc,
-             "material": len(jroot["materials"]) - 1})
+        prim = {"attributes": attrs, "indices": idx_acc,
+                "material": len(jroot["materials"]) - 1}
+        # one mesh + one node per submesh (rather than one mesh with many
+        # primitives) so each submesh imports as its own selectable object
+        # in Blender/etc., matching the OBJ path's separate "o submesh{i}"
+        # groups instead of collapsing into one multi-material object.
+        mesh_idx = len(jroot["meshes"])
+        jroot["meshes"].append({"primitives": [prim], "name": f"submesh{i}"})
+        node_idx = len(jroot["nodes"])
+        jroot["nodes"].append({"mesh": mesh_idx, "name": f"submesh{i}"})
+        jroot["scenes"][0]["nodes"].append(node_idx)
 
-    if not jroot["meshes"][0]["primitives"]:
+    if not jroot["meshes"]:
         raise ValueError("no exportable submeshes")
     blob = b"".join(bin_parts)
     jroot["buffers"] = [{"byteLength": len(blob)}]
@@ -874,19 +908,34 @@ def gather_inputs(paths):
     to run extract first).
     """
     files = []
+
+    def _explode_container(cf, rel_base):
+        # read a raw .lu/.luh container and yield its records as if they'd
+        # already been extracted to individual .bin files -- lets the rest
+        # of the pipeline treat "a folder of game files" and "a folder of
+        # pre-extracted chunks" the same way
+        from naughty_lu import LuFile, harvest_names
+        lu = LuFile(str(cf))
+        names = harvest_names([lu])
+        for r in lu.records:
+            if getattr(r, "external", False):
+                continue
+            nm = names.get(r.hash, f"{r.hash:08x}")
+            files.append(((lu, r), rel_base / f"{r.index:04d}_{nm}"))
+
     for p in map(Path, paths):
         if p.is_dir():
             for f in sorted(p.rglob("*.bin")):
                 files.append((f, Path(p.name) / f.relative_to(p).with_suffix("")))
+            # also recurse for raw .lu/.luh containers sitting in the folder
+            # (not just pre-extracted .bin chunks) so pointing this at a
+            # directory of game files works the same as a single file does.
+            containers = sorted(list(p.rglob("*.lu")) + list(p.rglob("*.luh")))
+            for cf in containers:
+                _explode_container(
+                    cf, Path(p.name) / cf.relative_to(p).with_suffix(""))
         elif p.suffix.lower() in (".lu", ".luh") or _looks_like_container(p):
-            from naughty_lu import LuFile, harvest_names
-            lu = LuFile(str(p))
-            names = harvest_names([lu])
-            for r in lu.records:
-                if getattr(r, "external", False):
-                    continue
-                nm = names.get(r.hash, f"{r.hash:08x}")
-                files.append(((lu, r), Path(p.stem) / f"{r.index:04d}_{nm}"))
+            _explode_container(p, Path(p.stem))
         else:
             files.append((p, Path(p.stem)))
     return files
@@ -910,6 +959,17 @@ def _read_source(src):
 
 
 def main():
+    # stdout is fully block-buffered (not line-buffered) whenever it's
+    # attached to a pipe instead of a real terminal -- exactly what happens
+    # when a GUI spawns this script as a subprocess and reads its output.
+    # Without this, every print() below queues into an internal buffer and
+    # only reaches the reader in one lump when the buffer fills or the
+    # process exits, no matter how the surrounding loops are structured.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(line_buffering=True)
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(line_buffering=True)
+
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("inputs", nargs="+",
                     help="extracted chunk .bin files or directories "
@@ -925,16 +985,22 @@ def main():
     if out_dir:
         out_dir.mkdir(parents=True, exist_ok=True)
 
+    # ---- pass 1: classify. Only texture/mesh chunk bytes are kept in
+    # memory (and only until they're converted, in pass 2 below) —
+    # non-convertible chunks (animations, scripts, sound, UI) are read,
+    # checked, and dropped immediately instead of held for the whole run.
+    total = len(files)
+    print(f"scanning {total} chunks...")
     textures, meshes, skipped, ui_chunks = [], [], 0, 0
-    blobs = {}
-    for p, rel in files:
+    tex_blobs, mesh_blobs = {}, {}
+    for i, (p, rel) in enumerate(files, 1):
         d = _read_source(p)
-        key = rel                              # rel is unique per input
-        blobs[key] = d
         if is_texture_chunk(d):
-            textures.append((key, rel))
+            textures.append(rel)
+            tex_blobs[rel] = d
         elif is_mesh_chunk(d):
-            meshes.append((key, rel))
+            meshes.append(rel)
+            mesh_blobs[rel] = d
         else:
             if len(d) >= 8 and d[4:8] == b"\x00\x00\x00\x00" and \
                int.from_bytes(d[:4], "big") == 0x04D00001:
@@ -943,14 +1009,27 @@ def main():
                     (len(d) >= 4 and int.from_bytes(d[:4], "big") == 0x04D00001):
                 ui_chunks += 1
             skipped += 1
+        if i % 200 == 0 or i == total:
+            # flush=True here isn't optional: line_buffering (set in main())
+            # only auto-flushes on '\n', and this is a '\r'-terminated
+            # progress line that overwrites itself in place, so without an
+            # explicit flush it would sit in the buffer with everything else
+            print(f"  scanned {i}/{total} "
+                  f"({len(textures)} textures, {len(meshes)} meshes so far)",
+                  end="\r", file=sys.stderr, flush=True)
+    if total:
+        print(file=sys.stderr)     # newline after the \r progress line
 
-    # textures first, building hash -> image path index for material binding
+    # ---- pass 2: convert. Textures first so the hash -> image index is
+    # ready for mesh material binding; each blob is dropped (.pop) right
+    # after conversion instead of staying resident for the rest of the run.
     tex_index = {}
     print(f"converting {len(textures)} textures...")
-    for key, rel in textures:
+    for n, rel in enumerate(textures, 1):
         base = (out_dir / rel) if out_dir else Path(rel)
         base.parent.mkdir(parents=True, exist_ok=True)
-        written = convert_texture(blobs[key], base)
+        written = convert_texture(tex_blobs.pop(rel), base)
+        print(f"  [{n}/{len(textures)}] {base.name}")
         img = next((w for w in written if w.suffix == ".png"),
                    next((w for w in written if w.suffix == ".dds"), None))
         if img:
@@ -963,10 +1042,10 @@ def main():
                 tex_index[zlib.crc32(tail.lower().encode()) & 0xFFFFFFFF] = img
 
     print(f"converting {len(meshes)} meshes...")
-    for key, rel in meshes:
+    for rel in meshes:
         base = (out_dir / rel) if out_dir else Path(rel)
         base.parent.mkdir(parents=True, exist_ok=True)
-        convert_mesh(blobs[key], base, tex_index, glb=not args.no_glb)
+        convert_mesh(mesh_blobs.pop(rel), base, tex_index, glb=not args.no_glb)
 
     msg = (f"done ({skipped} non-convertible chunks skipped — animations, "
            f"sounds, scene data etc. are not yet supported)")

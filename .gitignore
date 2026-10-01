@@ -25,3 +25,9 @@ seamripper.log
 # game-derived: in-progress script edits, and the game's own text
 drafts/
 tools/nb_text.json
+
+# docs site build output
+docs/_site/
+docs/.jekyll-cache/
+docs/Gemfile.lock
+docs/vendor/

@@ -1,3 +1,9 @@
+---
+title: Naughty's hats
+parent: Script reference
+nav_order: 1
+---
+
 # Naughty's hats: health and damage
 
 Each hat changes Naughty's health and how hard he hits. All of it is in one

@@ -1,0 +1,26 @@
+title: Seam Ripper
+description: Modding tools for Naughty Bear and Naughty Bear Panic in Paradise
+url: https://leonmustdie.github.io
+baseurl: /seam-ripper
+
+remote_theme: just-the-docs/just-the-docs@v0.10.1
+plugins:
+  - jekyll-remote-theme
+  - jekyll-relative-links
+  - jekyll-optional-front-matter
+
+relative_links:
+  enabled: true
+
+search_enabled: true
+color_scheme: naughty
+heading_anchors: true
+
+aux_links:
+  "Download": "https://github.com/leonmustdie/seam-ripper/releases"
+  "GitHub": "https://github.com/leonmustdie/seam-ripper"
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor

@@ -1,0 +1,6 @@
+source "https://rubygems.org"
+
+# The same Jekyll and plugins GitHub Pages uses, so the local preview matches.
+gem "github-pages", group: :jekyll_plugins
+gem "webrick"
+gem "tzinfo-data", platforms: [:mingw, :x64_mingw, :mswin]

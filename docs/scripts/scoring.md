@@ -1,3 +1,9 @@
+---
+title: Scoring
+parent: Script reference
+nav_order: 3
+---
+
 # Scoring: points and the combo multiplier
 
 Most of the big point awards and the whole combo multiplier ladder are set in

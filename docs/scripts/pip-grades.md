@@ -1,3 +1,9 @@
+---
+title: "PiP: grades"
+parent: Script reference
+nav_order: 6
+---
+
 # PiP: grade scores (bronze to platinum)
 
 *Panic in Paradise.* The scores needed for bronze, silver, gold and platinum

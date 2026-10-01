@@ -1,3 +1,9 @@
+---
+title: Bear stats
+parent: Script reference
+nav_order: 2
+---
+
 # Bear stats: health, fear, weapons
 
 Every named bear on the island is defined by one line. Changing that line
@@ -35,7 +41,7 @@ In order (names from `NPCDef` in `global.lu`):
 | 12 | fearThresholds | `{0.4, 0.7, 1.0}` | Fear stages (see [NPC fear](npc-fear.md)) |
 | 13 | soundSuffix | `NORMALBEAR1_SOUNDSUFFIX` | Which voice it uses |
 | 14 | startingWeaponName | `""` | Weapon it starts with (`""` = none) |
-| 15 | startingAccessoriesList | *(not given)* | Hats and other items, e.g. `{{"cophat01", "joint_Head"}}` |
+| 15 | startingAccessoriesList | *(not given)* | Hats and other items it starts with (see the example below) |
 
 ## Typical values
 
@@ -56,6 +62,7 @@ In order (names from `NPCDef` in `global.lu`):
 Episode and challenge levels change bears with plain assignments after the
 main list. From `ep1cha4_npcs`:
 
+{% raw %}
 ```lua
 COPCURLY.startingAccessoriesList = {{"tophat", "joint_Head"}}
 COPCURLY.startingWeaponName = "raygun01"
@@ -65,6 +72,7 @@ COPCURLY.shootingSpeed = 1.0
 COPCURLY.longRangeDamageModifier = 125
 COPCURLY.closeRangeDamageModifier = 125
 ```
+{% endraw %}
 
 `closeRangeDamageModifier` and `longRangeDamageModifier` are the bear's own
 melee and gun damage, the same as on [Naughty's hats](hats.md).

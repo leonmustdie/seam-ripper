@@ -1,3 +1,10 @@
+---
+title: Script reference
+nav_order: 2
+has_children: true
+permalink: /scripts/
+---
+
 # Script reference
 
 What the games' Lua scripts actually do, one page per system. The rest of the

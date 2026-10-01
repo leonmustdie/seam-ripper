@@ -1,0 +1,27 @@
+// Naughty theme details the color scheme variables don't cover
+
+// dark text on the honey button, as in the app
+.btn-primary,
+.btn-primary:hover {
+  color: #241706 !important;
+}
+
+// code colours from the app's editor
+.highlight,
+pre.highlight {
+  color: #efe3d0;
+  background: #1f1812;
+}
+.highlight .k, .highlight .kd, .highlight .kn, .highlight .kp, .highlight .kr,
+.highlight .kc, .highlight .ow { color: #f28fa8; }
+.highlight .s, .highlight .s1, .highlight .s2, .highlight .sd, .highlight .sx { color: #e8c06a; }
+.highlight .m, .highlight .mi, .highlight .mf, .highlight .mh { color: #7fd0c4; }
+.highlight .c, .highlight .c1, .highlight .cm, .highlight .cs { color: #a8957c; font-style: italic; }
+.highlight .nf, .highlight .nb, .highlight .n, .highlight .nv, .highlight .p,
+.highlight .o { color: #efe3d0; }
+
+// selected sidebar item, like the app's selection colour
+.nav-list .nav-list-item .nav-list-link.active {
+  background-color: #6b4a12;
+  color: #fff4dc;
+}

@@ -1,3 +1,9 @@
+---
+title: NPC fear
+parent: Script reference
+nav_order: 4
+---
+
 # NPC fear: how bears react to Naughty
 
 Bears don't watch Naughty directly. Every bear has a **fear component** that

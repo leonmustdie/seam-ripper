@@ -1,3 +1,8 @@
+---
+title: Technical notes
+nav_order: 3
+---
+
 # Technical notes
 
 The details behind Seam Ripper, for anyone who wants to know how it works or

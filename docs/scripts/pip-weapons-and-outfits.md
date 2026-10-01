@@ -1,3 +1,9 @@
+---
+title: "PiP: weapons and outfits"
+parent: Script reference
+nav_order: 5
+---
+
 # PiP: weapons and outfits
 
 *Panic in Paradise.* Every weapon and outfit piece Naughty can buy has one

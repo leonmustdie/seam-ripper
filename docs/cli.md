@@ -1,3 +1,8 @@
+---
+title: Command-line tools
+nav_order: 4
+---
+
 # Command-line tools
 
 Everything the GUI does runs through these scripts, and the GUI's Log tab

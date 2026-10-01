@@ -1,6 +1,6 @@
 ---
 title: Command-line tools
-nav_order: 4
+nav_order: 5
 ---
 
 # Command-line tools
@@ -33,6 +33,7 @@ With the release build, run them through the EXE:
 | `pip_dump.py` | Dump everything from PiP units |
 | `pip_gfx.py` | PiP UI movies and their textures |
 | `pip_scripts.py` | `extract` and `inject` PiP Lua source |
+| `xiso_extract.py` | `list` and `extract` the files on an Xbox 360 disc image |
 
 ## Building blocks
 

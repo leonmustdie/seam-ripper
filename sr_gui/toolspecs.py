@@ -3,6 +3,7 @@
 LU = "Lu container (*.lu);;All (*.*)"
 TXT = "Text (*.txt);;All (*.*)"
 GLB = "glTF binary (*.glb);;All (*.*)"
+ISO = "Xbox 360 disc image (*.iso);;All (*.*)"
 
 F_FILE = {"label": ".lu file", "kind": "openfile", "patterns": LU, "required": True, "fill": "file"}
 F_FILES = {"label": ".lu files or folder", "kind": "paths", "required": True, "fill": "paths"}
@@ -70,6 +71,15 @@ TOOLS = [
                 {"label": "Save as .lu", "kind": "savefile", "flag": "-o", "patterns": LU,
                  "required": True}]},
     # ---- Extract and convert
+    {"group": "Extract and convert", "title": "Extract game disc (.iso)",
+     "script": "xiso_extract.py", "sub": "extract",
+     "help": "Copy the game files off a Naughty Bear disc image so you can open and "
+             "edit them.",
+     "fields": [{"label": "Disc image", "kind": "openfile", "patterns": ISO,
+                 "required": True},
+                {"label": "Save into folder", "kind": "folder", "flag": "-o",
+                 "required": True},
+                {"label": "Only the lu folder", "kind": "flag", "flag": "--lu-only"}]},
     {"group": "Extract and convert", "title": "Extract chunks", "script": "naughty_lu.py",
      "sub": "extract",
      "help": "Pull everything out of containers, sorted by type. Then run 'Convert "

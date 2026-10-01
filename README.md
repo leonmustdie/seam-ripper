@@ -16,6 +16,8 @@ Grab the latest zip from [Releases](../../releases), extract it anywhere and run
 
 This GitHub page is the only official place to get Seam Ripper.
 
+Need the game files first? See [Getting your game files](docs/getting-game-files.md).
+
 To run from source instead: `pip install PySide6 pillow`, then `python SeamRipper.py`.
 
 ## The GUI

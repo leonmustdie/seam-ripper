@@ -21,6 +21,8 @@ app is in the [README](https://github.com/leonmustdie/seam-ripper#readme).
 
 ## What's here
 
+* [Getting your game files](getting-game-files.md): from your NB1 disc image
+  or PiP Arcade package to a folder you can mod.
 * [Script reference](scripts/README.md): what the game's scripts do and how to
   change them. Easy places to start: [Naughty's hats](scripts/hats.md) (NB1)
   and [weapons and outfits](scripts/pip-weapons-and-outfits.md) (PiP).

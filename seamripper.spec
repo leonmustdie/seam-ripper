@@ -39,7 +39,7 @@ TOOL_SCRIPTS = [
     "lu_lua.py", "lua_repair.py", "nb_names.py",
     "nbdec.py", "nbdec_bench.py", "nb_reconstruct.py",
     "sr_backup.py", "sr_launch.py", "sr_lookup.py", "sr_search.py",
-    "sr_patch.py", "pip_schema.py",
+    "sr_patch.py", "pip_schema.py", "xiso_extract.py",
 ]
 # PiP dumper companions — present in the full repo; harmless to list if
 # missing at build time? No: PyInstaller errors on missing datas, so these

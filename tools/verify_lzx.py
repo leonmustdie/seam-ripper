@@ -1,34 +1,5 @@
 #!/usr/bin/env python3
-"""verify_lzx.py - independent integrity check for a rebuilt .lu container.
-
-Two legs, both mandatory for a PASS:
-
-  structural  - record table and XMemCompress frame layout match the retail
-                conventions verified on real NB1/PiP files this project has
-                seen: every record offset 16-byte aligned, alignment gaps
-                0xBF-filled, each segment's final frame in 5-byte escape form,
-                each segment terminated by a 5-byte all-zero marker, and the
-                segment-size table agreeing with the actual compressed bytes.
-
-  independent - each compressed segment is decoded by a SEPARATE LZX
-                implementation (a bundled libmspack-based binary, invoked as
-                a subprocess) and the result compared byte-for-byte against
-                the image the container claims to hold. This exists because
-                self-consistency (this project's own encoder round-tripping
-                through its own decoder) produced false confidence twice;
-                a decoder written by the same author as the encoder shares
-                its blind spots. libmspack is an independent codebase.
-
-The independent leg REQUIRES the verifier binary. If it is missing, that is
-a FAIL, not a skip: "sometimes verified" is a worse guarantee than "always
-verified," and a silent fallback to the self-decoder is exactly the failure
-mode that shipped a crashing build earlier in this project.
-
-Used two ways:
-  * imported: cmd_ship calls verify_file() before accepting a rebuilt .lu.
-  * standalone: `python verify_lzx.py <file.lu>` checks any .lu on disk,
-    retail or already-shipped, without going through an edit.
-"""
+"""Independent integrity check for a rebuilt .lu container."""
 import argparse
 import os
 import struct
@@ -38,6 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from naughty_lu import LuFile, LZX_FRAME_SIZE  # noqa: E402
+from lu_chunk_replace import record_alignment  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 RECORD_ALIGN = 16
@@ -77,6 +49,13 @@ def _segment_blobs(lu):
     return segs
 
 
+def _segment_targets(lu):
+    """Uncompressed size of each segment: a full window, the last one short."""
+    window = lu.lzx_window or 0x100000
+    return [min(window, lu.image_size - i * window)
+            for i in range(lu.segment_count)]
+
+
 def _walk_frames(seg):
     """Walk one segment's XMemCompress frames. Returns (frames, ok_terminator)
     where frames is a list of dicts describing each frame, and ok_terminator
@@ -114,9 +93,53 @@ def _walk_frames(seg):
 
 # ---------------------------------------------------------------- structural
 
+def _check_placement(lu):
+    """NB1 records sit back to back: each starts at the first multiple of its
+    own alignment after the previous record ends, the gap filled with 0xBF.
+    The engine walks them in sequence, so any other offset crashes on load."""
+    recs = sorted((r for r in lu.records if not r.external and r.size > 0),
+                  key=lambda r: (r.offset, r.index))
+    img = lu.image
+    prev = None
+    for r in recs:
+        if r.offset + r.size > lu.image_size:
+            raise VerifyError(f"record {r.index} runs past the image end "
+                              f"({r.offset + r.size:#x} > {lu.image_size:#x})")
+        if prev is not None and r.offset == prev.offset:
+            if r.size > prev.size:
+                prev = r
+            continue
+        if prev is not None:
+            end = prev.offset + prev.size
+            a = record_alignment(r)
+            want = (end + a - 1) // a * a
+            if r.offset < end:
+                raise VerifyError(f"records {prev.index}/{r.index} overlap "
+                                  f"({end:#x} > {r.offset:#x})")
+            if r.offset != want:
+                raise VerifyError(
+                    f"record {r.index} starts at {r.offset:#x}, but after "
+                    f"record {prev.index} ends at {end:#x} the game expects "
+                    f"it at {want:#x} (the next {a}-byte boundary). The game "
+                    f"reads records in sequence, so this crashes on load.")
+            fill = img[end:r.offset]
+            if fill != bytes([ALIGN_FILL]) * len(fill):
+                raise VerifyError(
+                    f"alignment gap after record {prev.index} is not "
+                    f"{ALIGN_FILL:#04x}-filled: {fill[:32].hex()}")
+        prev = r
+    return recs
+
+
 def check_structural(lu):
     """Raise VerifyError on any deviation from retail layout convention.
     Returns a short summary string on success."""
+    if not getattr(lu, "is_luh", False):
+        recs = _check_placement(lu)
+        return _check_segments(lu, recs)
+
+    # PiP LUH: the placement rule above is only verified on NB1, so keep
+    # the looser 16-byte check here.
     recs = sorted((r for r in lu.records if not r.external),
                   key=lambda r: r.offset)
 
@@ -142,7 +165,10 @@ def check_structural(lu):
                 raise VerifyError(
                     f"alignment gap after record {r1.index} is not "
                     f"{ALIGN_FILL:#04x}-filled: {fill.hex()}")
+    return _check_segments(lu, recs)
 
+
+def _check_segments(lu, recs):
     if not lu.compressed:
         return f"structural OK ({len(recs)} records, raw/uncompressed image)"
 
@@ -152,10 +178,15 @@ def check_structural(lu):
                           f"{len(segs)} actual blobs")
 
     total_usize = 0
+    targets = _segment_targets(lu)
     for si, seg in enumerate(segs):
         if len(seg) != lu.segment_sizes[si]:
             raise VerifyError(f"segment {si} size table says "
                               f"{lu.segment_sizes[si]}, blob is {len(seg)}")
+        if len(seg) == targets[si]:
+            # stored raw, as the reader and retail's small containers do
+            total_usize += len(seg)
+            continue
         frames, term = _walk_frames(seg)
         if not frames:
             raise VerifyError(f"segment {si} has no frames")
@@ -211,7 +242,14 @@ def check_independent(lu, verifier):
     import tempfile
     tmp = Path(tempfile.mkdtemp(prefix="lzxverify_"))
     try:
+        targets = _segment_targets(lu)
         for si, seg in enumerate(segs):
+            if len(seg) == targets[si]:
+                if seg != image[pos:pos + len(seg)]:
+                    raise VerifyError(f"segment {si}: stored segment differs "
+                                      f"from container image")
+                pos += len(seg)
+                continue
             payload, usize = _strip_frames(seg)
             fin = tmp / f"seg{si}.in"
             fout = tmp / f"seg{si}.out"

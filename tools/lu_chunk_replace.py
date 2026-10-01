@@ -1,24 +1,5 @@
 #!/usr/bin/env python3
-"""lu_chunk_replace.py - replace one record's bytes inside a .lu, preserving the
-original image layout (inter-record padding/gaps).
-
-Uncompressed (codec 0) source containers: writes raw codec=0, same as
-before.
-
-Compressed (codec 2) source containers: re-compresses the edited image with
-lzx_encode.xmem_lzx_compress, keeping the ORIGINAL container's codec=2 shape
-(same window size, same per-segment framing the retail engine already
-accepts) rather than flattening to raw — an earlier raw/codec=0 rewrite of a
-compressed x36 file was found to corrupt at load (see nblua.py's ship-time
-guard history). Only the common case (the edit doesn't change the segment
-COUNT — true unless the image size crosses a whole window boundary) is
-supported; anything else refuses rather than emit an unverified layout.
-
-Same-size chunk replacement: in-place overwrite, no record offsets change.
-Different-size: splice at the record, shift only records that start after
-it, rewrite only their table offsets. All original padding before the edit
-is kept.
-"""
+"""Replace one record's bytes inside a .lu, keeping the image layout."""
 import argparse
 import struct
 import sys
@@ -33,11 +14,70 @@ def u32(b, o):
     return struct.unpack_from(">I", b, o)[0]
 
 
+def record_alignment(rec):
+    """The top byte of a record's flags is log2 of its alignment in the image."""
+    return 1 << (rec.flags >> 24)
+
+
+def relayout(lu, replacements):
+    """Image with records' bytes replaced -> (image, {index: offset}).
+
+    The engine expects every record at the first multiple of its alignment
+    after the previous record ends (0xBF fill between). Records before the
+    first replaced one stay put; from there on each is placed by that rule.
+    """
+    image = lu.image
+    recs = sorted((r for r in lu.records if not r.external and r.size > 0),
+                  key=lambda r: (r.offset, r.index))
+    first = min(lu.records[i].offset for i in replacements)
+    out = bytearray(image[:first])
+    offsets = {}
+    placed = {}   # original offset -> new offset (records sharing an offset)
+    end = first
+    for r in recs:
+        if r.offset < first:
+            continue
+        if r.offset in placed:
+            offsets[r.index] = placed[r.offset]
+            continue
+        a = record_alignment(r)
+        at = (end + a - 1) // a * a
+        out += b"\xBF" * (at - len(out))
+        data = replacements.get(r.index, image[r.offset:r.offset + r.size])
+        out += data
+        offsets[r.index] = placed[r.offset] = at
+        end = at + len(data)
+    last = max(r.offset + r.size for r in recs)
+    out += image[last:]
+    # empty records keep their place relative to the record before them
+    moved = sorted(placed.items())
+    for r in lu.records:
+        if r.external or r.index in offsets or r.offset < first:
+            continue
+        prev = [o for o in moved if o[0] <= r.offset]
+        offsets[r.index] = r.offset + (prev[-1][1] - prev[-1][0] if prev else 0)
+    return out, offsets
+
+
+def write_record_table(raw, offsets, sizes):
+    """Write new offsets / sizes into the record table of a container's header
+    (by index, so a partner record sharing a hash keeps its own entry)."""
+    fo = 0x20 + u32(raw, 0x38)
+    table = 0x20 + u32(raw, fo)
+    for i, off in offsets.items():
+        struct.pack_into(">I", raw, table + i * 0x18 + 0x10, off)
+    for i, size in sizes.items():
+        struct.pack_into(">I", raw, table + i * 0x18 + 0x0C, size)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("lu")
     ap.add_argument("chunk")
     ap.add_argument("--hash")
+    ap.add_argument("--index", type=int,
+                    help="record table index: exact, even when several "
+                         "records share one hash")
     ap.add_argument("--name")
     ap.add_argument("-o", "--out", required=True)
     a = ap.parse_args()
@@ -48,11 +88,24 @@ def main():
     new = Path(a.chunk).read_bytes()
 
     target = None
-    if a.hash:
-        for r in lu.records:
-            if r.hash == int(a.hash, 16):
-                target = r
-                break
+    if a.index is not None:
+        if not 0 <= a.index < len(lu.records):
+            sys.exit(f"no record {a.index}")
+        target = lu.records[a.index]
+        if a.hash and target.hash != int(a.hash, 16):
+            sys.exit(f"REFUSED: record {a.index} has hash {target.hash:#010x}, "
+                     f"not {a.hash}")
+    elif a.hash:
+        # A script can share its hash with a partner record (a module
+        # descriptor, an object record). Taking the first match would
+        # overwrite the partner, so a shared hash must be addressed by index.
+        same = [r for r in lu.records if r.hash == int(a.hash, 16)
+                and not r.external]
+        if len(same) > 1:
+            sys.exit(f"REFUSED: {len(same)} records share hash {a.hash} "
+                     f"(indices {', '.join(str(r.index) for r in same)}); "
+                     f"pass --index to say which one to replace")
+        target = same[0] if same else None
     elif a.name:
         # A bare substring match over raw chunk bytes is fragile — a short
         # common name can coincidentally appear inside unrelated binary
@@ -71,31 +124,8 @@ def main():
     if target is None:
         sys.exit("chunk not found")
 
-    # Retail convention (verified on global.lu 347 records + levelcommon.lu
-    # 965 records, zero exceptions): every record offset is 16-byte aligned,
-    # inter-record alignment gaps are filled with 0xBF. A raw-delta shift
-    # breaks alignment on every record after the splice point; pad the
-    # replacement so the shift stays a multiple of 16.
-    delta = len(new) - target.size
-    pad = (-delta) % 16
-    delta += pad
-    new_image = (bytearray(image[:target.offset]) + bytearray(new)
-                + bytearray(b"\xBF" * pad)
-                + bytearray(image[target.offset + target.size:]))
-
-    fo = 0x20 + u32(raw, 0x38)
-    table = 0x20 + u32(raw, fo)
-    count = u32(raw, fo + 4)
-
-    if delta != 0:
-        for i in range(count):
-            e = table + i * 0x18
-            h = u32(raw, e)
-            off = u32(raw, e + 0x10)
-            if h == target.hash:
-                struct.pack_into(">I", raw, e + 0x0C, len(new))
-            elif off != 0xFFFFFFFF and off > target.offset:
-                struct.pack_into(">I", raw, e + 0x10, off + delta)
+    new_image, offsets = relayout(lu, {target.index: new})
+    write_record_table(raw, offsets, {target.index: len(new)})
 
     pi = 0x20 + u32(raw, 0x34)
 

@@ -1,42 +1,5 @@
 #!/usr/bin/env python3
-"""
-lu_convert.py — convert extracted Naughty Bear .lu resource chunks into
-Blender-friendly formats.
-
-Works on a raw .lu/.luh container directly, on the output of
-naughty_lu.py extract, or on individual .bin chunks:
-
-  textures (type 14200007)   ->  .dds (+ .png if Pillow is installed)
-  meshes   (type 04000007)   ->  .obj + .mtl, UV-mapped, with materials
-                                 bound to the converted textures
-                                 (also handles packed "area" chunks that
-                                 bundle a whole zone's props/vegetation/
-                                 buildings — each object comes out as its
-                                 own submesh)
-
-Usage:
-  python3 lu_convert.py <extracted_dir> [-o out_dir]
-  python3 lu_convert.py some_texture.bin some_mesh.bin [-o out_dir]
-
-Texture pipeline (validated on X360 'Gold Edition' data):
-  chunk header: +0x08 height, +0x0C width, +0x10 bpp, +0x24 mip count,
-                +0x28 Xenos format dword (low 6 bits: 0x12=DXT1, 0x14=DXT5),
-                +0x38 data offset, +0x3C data size
-  pixel data is u16-byteswapped and 2D-tiled (Xenos XGAddress2DTiledOffset,
-  surfaces padded to 32x32 blocks); base mip level is exported.
-
-Mesh pipeline:
-  chunk contains per-submesh descriptor blocks; each holds a buffer quad
-  {vb_offset, vb_size, ib_offset, ib_size} (offsets 4KB-aligned, chunk-
-  relative). Vertices are big-endian: float3 position at +0; UV is a pair
-  of half-floats whose offset (and the vertex stride) vary per submesh and
-  are auto-detected (stride via minimal-edge-length scoring, UV via range
-  analysis). Index buffers are 16-bit big-endian triangle strips with
-  0xFFFF primitive-restart. Descriptors also reference the submesh's
-  textures as {crc32_hash, 0x04200007} pairs, used here to bind materials.
-
-Only Pillow is needed (and only for PNG output); everything else is stdlib.
-"""
+"""Convert extracted Naughty Bear .lu chunks into Blender-friendly formats."""
 
 import argparse
 import math
@@ -970,7 +933,7 @@ def main():
     if hasattr(sys.stderr, "reconfigure"):
         sys.stderr.reconfigure(line_buffering=True)
 
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
+    ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("inputs", nargs="+",
                     help="extracted chunk .bin files or directories "
                          "(e.g. the naughty_lu.py extract output)")

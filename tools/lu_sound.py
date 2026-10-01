@@ -1,43 +1,5 @@
 #!/usr/bin/env python3
-"""
-lu_sound.py — extract and (where the layout is confirmed) decode the audio
-that lives inside Naughty Bear .lu containers.
-
-Two audio sources exist in the game; this tool handles both:
-
-  1. EMBEDDED SFX BANK  — `sound_wave` chunks (type 0x04C00008) stored in the
-     .lu image (e.g. the 665 waves in characters.lu). These are the in-memory
-     sound bank. Their internal header is the one piece LU_FORMAT.md never
-     fully decoded, so this tool's FIRST duty is to *characterise* them
-     (group by header shape, hexdump uniques, recover FX_* names) and only
-     decode shapes that are positively identified. Unidentified shapes are
-     dumped raw + reported — never blindly re-wrapped into garbage WAVs.
-
-  2. STREAMED AUDIO     — loose `streams\\*.xma` files referenced by the .cu
-     manifests (VO / music / ambience). These are standard Xbox 360 XMA and
-     are converted directly with ffmpeg's xma2 decoder (`--streams DIR`).
-
-Naming: `sound_binding` chunks (type 0x04C00010) carry the plaintext FX_*
-name plus an embedded {hash, 0x04C00008} reference to their wave chunk, so
-waves can be given real names. `sound_event` chunks add fx_l1_* names.
-
-Usage:
-  # characterise + extract the embedded bank (run this first):
-  python3 lu_sound.py bank characters.lu -o sound_out/
-  python3 lu_sound.py bank lu_extracted/characters/ -o sound_out/   # extracted dir
-
-  # convert loose streamed XMA -> WAV (needs ffmpeg):
-  python3 lu_sound.py streams path/to/streams/ -o sound_out/streams_wav/
-
-The `bank` command writes:
-  sound_out/wav/<name>.wav         decoded waves (identified shapes only)
-  sound_out/raw/<name>.wave.bin    raw chunk for every wave (always)
-  sound_out/wave_headers.txt       per-shape hexdump report  <-- calibration
-  sound_out/sound_manifest.tsv     wave hash -> name, size, shape, status
-
-Requires naughty_lu.py on the path (imported for .lu parsing). ffmpeg is
-only needed for actual decoding.
-"""
+"""Extract and decode the audio inside Naughty Bear .lu containers."""
 
 import argparse
 import re
@@ -577,7 +539,7 @@ def cmd_streams(args):
 
 def main():
     ap = argparse.ArgumentParser(
-        description=__doc__.splitlines()[1],
+        description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
 

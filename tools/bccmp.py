@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""Compare two Lua 5.1 chunks structurally: per-function nparams, vararg,
-maxstack, instruction stream, constant pool. Ignores header width, source
-name, line info, local/upvalue debug names (all stripped or cosmetic)."""
+"""Compare two Lua 5.1 chunks structurally."""
 import struct, sys
 from pathlib import Path
 

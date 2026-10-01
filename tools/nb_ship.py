@@ -1,23 +1,11 @@
 #!/usr/bin/env python3
-r"""nb_ship.py - edit the whole file like normal code; ship the change.
-
-You do NOT pick functions or paths. You edit chunk.lua freely and run this.
-It works out which functions you actually changed (by comparing instructions +
-constants, so line-number noise is ignored), injects ONLY those, and keeps
-every other function's original game bytes. It refuses only if you edited a
-function the decompiler can't reproduce faithfully (where your edit would sit
-on top of a wrong reconstruction) - and tells you which.
-
-usage (Windows):
-  python nb_ship.py game.lu naughtybearhatbonus chunk.lua -o out.lu --stage <build>\assets\lu
-  python nb_ship.py game.lu --hash 0xd88bd830 chunk.lua -o out.lu
-
-Add --luadec to use the luadec backend (needs luadec built).
-"""
+r"""Ship an edited Lua file back into its .lu."""
 import argparse, subprocess, sys, shutil, tempfile
 from pathlib import Path
-import os as _os, tempfile as _tf
-TMPDIR = _tf.gettempdir()
+import atexit as _atexit, os as _os, shutil as _shutil, tempfile as _tf
+# private per process, so two runs at once never share these files
+TMPDIR = _tf.mkdtemp(prefix="seamripper_")
+_atexit.register(_shutil.rmtree, TMPDIR, True)
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from naughty_lu import LuFile
@@ -83,9 +71,17 @@ def main():
     # three logic views: original game, baseline recompile, your edited recompile
     try:
         base_img = compile_to_360(tmp/"base.lua", luac)
+    except RuntimeError as e:
+        sys.exit(f"Seam Ripper could not rebuild the original script (not "
+                 f"your edit); re-read it and redo the edit:\n{e}")
+    try:
         edit_img = compile_to_360(a.source, luac)
     except RuntimeError as e:
-        sys.exit(f"a source failed to compile:\n{e}")
+        import nblua
+        line, msg = nblua.luac_error_line(e)
+        err = nblua.ShipError(f"{Path(a.source).name} line {line}: {msg}",
+                              a.source, line, "syntax")
+        sys.exit(f"{err}\n{err.sr_line()}")
 
     Lorig = proto360.decode_logic(orig_img)
     Lbase = proto360.decode_logic(base_img)
@@ -110,7 +106,7 @@ def main():
                  f"this chunk with the other backend (--luadec) and retry.")
     if not edited_leaf:
         print("no function-level changes detected; nothing to inject.")
-        if a.out: shutil.copy2(a.lu, a.out)
+        if a.out: shutil.copyfile(a.lu, a.out)
         return
 
     # splice each edited function into the original chunk image
@@ -121,6 +117,8 @@ def main():
     new_chunk = lua_chunk_swap.swap(chunk, cur)
     Path(_os.path.join(TMPDIR, "_ship_chunk.bin")).write_bytes(new_chunk)
 
+    import sr_backup
+    sr_backup.backup_before_overwrite(a.out)
     sys.argv = ["lu_chunk_replace.py", a.lu,
                 ("--hash" if a.hash else "--name"), (a.hash or a.name),
                 _os.path.join(TMPDIR, "_ship_chunk.bin"), "-o", a.out]
@@ -133,8 +131,8 @@ def main():
         stage = Path(a.stage)
         if not stage.is_dir(): sys.exit(f"--stage dir missing: {stage}")
         dest = stage / Path(a.lu).name
-        if dest.exists(): shutil.copy2(dest, dest.with_suffix(dest.suffix+".bak"))
-        shutil.copy2(a.out, dest)
+        sr_backup.backup_before_overwrite(dest)
+        shutil.copyfile(a.out, dest)
         print(f"staged -> {dest}; run the game to test.")
 
 if __name__ == "__main__":

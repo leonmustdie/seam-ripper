@@ -1,22 +1,11 @@
 #!/usr/bin/env python3
-r"""nb_decompile.py - one .luac (transcoded, raw-hashes) -> readable, named,
-modifiable Lua source, plus a per-function trust map.
-
-Pipeline: widen size_t -> luadec --raw-hashes-equivalent -> rename locals ->
-annotate hash names. Then recompile each function and compare to the original
-bytecode, so every function is tagged FAITHFUL (safe to edit + splice) or
-DIVERGENT (decompiler got it wrong; do not trust/edit, inject would be wrong).
-
-The `-- function num : PATH` comments luadec emits are the splice paths used
-by nb_inject.py.
-
-usage:
-  nb_decompile.py chunk.luac -o chunk.lua [--annotate-roots EXTRACT...]
-"""
+r"""Turn a transcoded .luac into readable, named, editable Lua source."""
 import argparse, subprocess, sys
 from pathlib import Path
-import os as _os, tempfile as _tf
-TMPDIR = _tf.gettempdir()
+import atexit as _atexit, os as _os, shutil as _shutil, tempfile as _tf
+# private per process, so two runs at once never share these files
+TMPDIR = _tf.mkdtemp(prefix="seamripper_")
+_atexit.register(_shutil.rmtree, TMPDIR, True)
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import widen_sizet, rename_luadec, lua_recompile, bccmp, lua_clean

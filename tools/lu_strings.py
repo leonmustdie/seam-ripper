@@ -1,24 +1,5 @@
 #!/usr/bin/env python3
-"""lu_strings.py - extract / apply UTF-16 localization strings in x36 .lu files.
-
-Workflow:
-  1. lu_strings.py extract orig.lu -o strings.txt
-       -> writes one editable line per record: HASH<TAB>text
-  2. edit strings.txt (fix spelling, change wording; keep the HASH<TAB> prefix)
-  3. lu_strings.py apply orig.lu strings.txt -o edited.lu
-       -> rebuilds the image with your edits, fixes every record offset/size,
-          and writes a raw (codec=0) container the engine loads directly.
-
-Handles length-changing edits: when a string's byte length changes, all
-later record offsets shift and the affected record's size updates, both in
-the record table and re-derived in the image.
-
-Each localization record in the decompressed image is:
-  hash(4) type(4) ... strlen_u32 UTF-16BE-text(strlen units, NUL-terminated)
-then 0xBF / 0x00 padding to the next record. The string length field is the
-last u32 before the text; we locate it from the record layout the engine uses
-(strlen at record_offset + 0x20, text at +0x24), matching all observed files.
-"""
+"""Extract and apply UTF-16 localization strings in x36 .lu files."""
 import argparse
 import struct
 import sys

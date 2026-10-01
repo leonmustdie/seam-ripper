@@ -3,7 +3,7 @@
 This folder documents the licensing of `lzxverify` / `lzxverify.exe`, the
 independent LZX decoder that `verify_lzx.py` uses as the mandatory
 independent-decode leg of Seam Ripper's ship-time container check (see
-`README_SeamRipper.md` → **Verification**).
+`docs/cli.md`).
 
 This document covers `lzxverify` only. It does not review the licensing of
 Seam Ripper's other bundled third-party tools (`luac51.exe`, `luadec.exe`,

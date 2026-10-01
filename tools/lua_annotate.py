@@ -1,14 +1,5 @@
 #!/usr/bin/env python3
-r"""lua_annotate.py - add readable comments to __hash_0x placeholders.
-
-Decompiling with raw hashes yields exact, recompilable placeholders like
-"__hash_0x139ad1f4" but they are unreadable. This appends the resolved name
-(from the CRC32 dictionary) as a line comment, so you read the name and the
-placeholder still round-trips exactly. luac strips comments, so annotation
-does not change the bytecode.
-
-  R = "__hash_0x139ad1f4"            -->  R = "__hash_0x139ad1f4"  -- AnimMgr
-"""
+r"""Add readable comments to __hash_0x placeholders."""
 import argparse, re, sys, glob
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))

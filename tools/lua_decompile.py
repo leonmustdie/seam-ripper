@@ -1,30 +1,5 @@
 #!/usr/bin/env python3
-"""
-lua_decompile.py — convert Naughty Bear compiled script chunks into
-standard Lua 5.1 bytecode and (optionally) decompile them to source.
-
-The game ships scripts as compiled Lua 5.1 with three deviations from
-stock luac:
-  1. a 0x84-byte engine wrapper before the \\x1bLua image (and a
-     variable-length footer after it),
-  2. a 13-byte header (the number-size byte appears twice),
-  3. function blocks: the top-level proto omits the nups byte, and a
-     custom constant type 0xFE holds a 64-bit interned string hash
-     (CRC32 of the lowercase string, zero-extended).
-
-This tool re-serializes each script as stock Lua 5.1 bytecode:
-  * standard 12-byte header
-  * nups=0 inserted at top level
-  * 0xFE hash constants replaced with string constants — resolved to
-    the original string through a CRC32 dictionary built from every
-    ASCII string found in the extracted game files, or
-    "__hash_0xXXXXXXXX" when unknown.
-
-If java + unluac.jar are available it also decompiles to .lua source.
-
-usage:
-  python3 lua_decompile.py <extract_root>... -o out_dir [--jar unluac.jar]
-"""
+"""Convert Naughty Bear script chunks to standard Lua 5.1 bytecode and decompile them."""
 import argparse
 import re
 import struct
@@ -60,12 +35,17 @@ def build_hash_dict(roots):
     return d
 
 
-def transcode(raw, hashes, raw_hashes=False):
+def transcode(raw, hashes, raw_hashes=False, as_numbers=False):
     """custom chunk bytes -> standard Lua 5.1 bytecode, or raise.
 
     raw_hashes=True forces every 0xFE constant to the __hash_0xXXXXXXXX
     placeholder form even when the dictionary could resolve it, so the
-    constant is exactly recoverable on recompile."""
+    constant is exactly recoverable on recompile.
+
+    as_numbers=True emits every 0xFE constant as an ordinary number with
+    its (signed 64-bit) value instead. No function in the shipped scripts
+    holds the same value both as 0xFE and as a number, so which constants
+    were 0xFE is recoverable per function from the original chunk."""
     i = raw.find(b"\x1bLua")
     if i < 0:
         raise ValueError("no Lua image")
@@ -138,10 +118,32 @@ def transcode(raw, hashes, raw_hashes=False):
             elif t == 0xFE:
                 h = struct.unpack_from("<Q", d, pos)[0]
                 pos_skip = raw_bytes(8)
-                if raw_hashes:
+                # The 0xFE constant is a full 64-bit value. Rendering only the
+                # low word lost the high one, and the recompiler then
+                # zero-extended: retail's 0xFFFFFFFFFFFFFFFF (-1, used for
+                # "no value" arguments such as SetCameraPosition's first
+                # parameter) came back as 0x00000000FFFFFFFF. That single
+                # truncated constant was enough to make a chunk's top-level
+                # body fail to round-trip, so `ship` refused every edit to it.
+                # Keep the short form when the high word is zero - which is
+                # every interned string hash, since CRC32 is 32-bit - so
+                # existing .lua files and the dictionary still match.
+                if as_numbers:
+                    # the value as the number it is. luac's parser treats a
+                    # numeric literal differently from a string (it delays
+                    # allocating it, for constant folding), so this is the
+                    # only form whose recompiled constant order can match
+                    v = h - (1 << 64) if h >> 63 else h
+                    out.append(3)
+                    out.extend(struct.pack("<d", float(v)))
+                    continue
+                if h >> 32:
+                    name = f"__hash_{h:#018x}"
+                elif raw_hashes:
                     name = f"__hash_{h & 0xFFFFFFFF:#010x}"
                 else:
-                    name = hashes.get(h & 0xFFFFFFFF, f"__hash_{h & 0xFFFFFFFF:#010x}")
+                    name = hashes.get(h & 0xFFFFFFFF,
+                                      f"__hash_{h & 0xFFFFFFFF:#010x}")
                 out.append(4)
                 wstr(name.encode() + b"\x00")
             else:

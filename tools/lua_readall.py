@@ -1,17 +1,5 @@
 #!/usr/bin/env python3
-r"""lua_readall.py - one command: a folder of .lu files -> readable source tree.
-
-Extracts every .lu in the input folder, then runs the readable pipeline
-(decompile raw-hashes -> unluac -> clean -> annotate -> verify) over all of
-them. Output is <out>/<unit>/<script>.lua for every script in every unit,
-with files that fail verification in <out>/_FAILED/.
-
-Units with no script chunks are silently skipped (most weapon/hat/asset .lu
-have none). Writes a manifest.txt listing what verified and what failed.
-
-Usage:
-  lua_readall.py D:\testingenvironment\initialnb1files\lu -o all_readable --luac luac51.exe
-"""
+r"""Turn a folder of .lu files into a readable source tree."""
 import argparse, subprocess, sys, shutil, tempfile
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))

@@ -71,7 +71,10 @@ class TestIsMeshChunk(unittest.TestCase):
         # The real packed-area chunk (confirmed on area*vegetation.lu) is
         # resource type 0x04000009 and starts with that class tag, not the
         # standalone-model header. It must be recognized by the fast path.
-        chunk = b"\x04\x00\x00\x09" + b"\x00" * 0x2000
+        # {type, 0, hash, type}: the tag appears twice, as in every real
+        # area*vegetation.lu chunk (detection requires both since PR #1)
+        chunk = (b"\x04\x00\x00\x09" + b"\x00" * 4 + b"\xa9\x5a\x03\x81"
+                 + b"\x04\x00\x00\x09" + b"\x00" * 0x2000)
         self.assertNotEqual(chunk[:4], b"\x00\x00\x00\x20")
         self.assertTrue(lu_convert.is_mesh_chunk(chunk),
                         "packed area chunk (04000009 header) not recognized")

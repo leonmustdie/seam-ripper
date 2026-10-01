@@ -1,30 +1,5 @@
 #!/usr/bin/env python3
-"""
-naughty_lu.py — extractor for Naughty Bear (Gold Edition, Xbox 360) .lu
-resource containers ("A2M engine loadable units").
-
-The .lu format is NOT Lua bytecode. It is a big-endian resource container:
-a self-describing header, a resource record table, and a data image that is
-either stored raw or compressed as an XMemCompress LZX stream (X360 XCompress).
-Full format documentation in the accompanying LU_FORMAT.md.
-
-Commands:
-  info        print header / record table details
-  decompress  write the raw (decompressed) data image to a file
-  extract     extract every resource chunk to <out>/<file-stem>/<type>/...
-
-Extraction extras:
-  * Resource hashes are CRC32 of the lower-cased resource name. The tool
-    harvests strings embedded in chunk data (FX names, object names, ...)
-    and resolves hashes to names automatically. Extra candidate names can
-    be supplied with --names wordlist.txt (one name per line).
-  * Records with offset == 0xFFFFFFFF are external references resolved by
-    hash from a dependency .lu. Pass the dependency files on the command
-    line and the tool resolves them across files.
-
-No third-party dependencies; the LZX decoder (ported from libmspack's
-lzxd.c) is embedded below.
-"""
+"""Extractor for Naughty Bear (Xbox 360) .lu resource containers."""
 
 import argparse
 import re

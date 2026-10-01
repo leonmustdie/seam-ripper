@@ -1,23 +1,5 @@
 #!/usr/bin/env python3
-"""lua_batchedit.py - apply a per-argument transform to every call in a chunk
-that matches an example, in the select-and-mark model.
-
-Workflow the GUI drives:
-  1. User selects one example call. build_pattern() splits it and returns a
-     Pattern whose slots are all ANCHOR by default; the GUI lets the user
-     retag each slot ANCHOR / TARGET / IGNORE and attach a transform to the
-     TARGET slots.
-  2. find_matches() scans the whole chunk for calls whose arity matches and
-     whose ANCHOR slots equal the example's, and returns them for review.
-  3. apply() rewrites the TARGET slots of the reviewed matches, right-to-left
-     so earlier edits don't shift later spans, and returns the new source.
-
-Transforms per target slot: scale (multiply), set (replace with literal),
-offset (add). Uniform mode applies one transform to every target; individual
-mode gives each target its own. Numeric transforms operate on the argument
-parsed as a Lua number; a non-numeric target under scale/offset is an error
-surfaced at apply time, not silently skipped.
-"""
+"""Apply a per-argument transform to every matching call in a chunk."""
 from dataclasses import dataclass, field
 from enum import Enum
 

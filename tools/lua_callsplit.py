@@ -1,21 +1,5 @@
 #!/usr/bin/env python3
-"""lua_callsplit.py - locate Lua call sites and split their argument lists
-into positional slots, respecting parentheses, brackets, braces, and string
-literals so that nested calls and string arguments don't fool a naive comma
-split.
-
-This is deliberately NOT a Lua parser. The input is always decompiler-
-generated source with consistent formatting, so a lightweight structural
-scan is enough to answer the one question the batch editor needs: "what are
-the positional arguments of every call to function F, and where in the text
-does each one live." A full grammar would solve problems this input doesn't
-have.
-
-Public API:
-  find_calls(src, func)   -> list[Call]
-  Call.args               -> list[Arg]   (positional slots)
-  Arg.text / Arg.start / Arg.end         (span in the original source)
-"""
+"""Find Lua call sites and split their arguments into positional slots."""
 import re
 from dataclasses import dataclass, field
 

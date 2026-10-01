@@ -1,15 +1,5 @@
 #!/usr/bin/env python3
-"""lua_chunk_swap.py - splice new Lua bytecode into a NB script chunk.
-
-A script chunk = wrapper | Lua image (\x1bLua...) | footer(name).
-Wrapper size fields (big-endian):
-  +0x1c  Lua image size
-  +0x20  image_start + image_size  (offset to footer)
-This swaps the image region and rewrites both fields. Wrapper/footer kept.
-
-Usage:
-  lua_chunk_swap.py orig_chunk.bin new_image.bin -o new_chunk.bin
-"""
+"""Splice new Lua bytecode into a Naughty Bear script chunk."""
 import argparse, struct
 from pathlib import Path
 

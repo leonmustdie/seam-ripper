@@ -34,11 +34,23 @@ TOOL_SCRIPTS = [
     "pip_gfx.py",
     "proto360.py", "bccmp.py", "rename_luadec.py", "widen_sizet.py",
     "verify_lzx.py", "lua_callsplit.py", "lua_batchedit.py", "lzx_encode.py",
+    # the Lua Code tab talks to lu_lua.py (one front door over NB1 bytecode
+    # and PiP plaintext); lua_repair.py is what makes luadec's output parse.
+    "lu_lua.py", "lua_repair.py", "nb_names.py",
+    "nbdec.py", "nbdec_bench.py", "nb_reconstruct.py",
+    "sr_backup.py", "sr_launch.py", "sr_lookup.py", "sr_search.py",
+    "sr_patch.py", "pip_schema.py",
 ]
 # PiP dumper companions — present in the full repo; harmless to list if
 # missing at build time? No: PyInstaller errors on missing datas, so these
 # are appended only if they exist.
 OPTIONAL_SCRIPTS = ["lu_rig.py", "pip_scripts.py"]
+# The CRC32 name dictionary is generated (nb_names.py build), not source,
+# so it is bundled only when it exists. Without it hashed constants simply
+# stay as __hash_0x placeholders; nothing breaks.
+# nb_text.json is the game's own localized text, built from the user's
+# files; it must never ship in a release.
+OPTIONAL_DATA = ["nb_names.json", "nb_names_sources.json"]
 
 import os
 BINARIES = ["luac51.exe", "unluac.jar", "luadec.exe",
@@ -55,6 +67,7 @@ def _in_tools(name):
 datas = [(_in_tools(s), ".") for s in TOOL_SCRIPTS if os.path.exists(_in_tools(s))]
 datas += [(_in_tools(s), ".") for s in OPTIONAL_SCRIPTS if os.path.exists(_in_tools(s))]
 datas += [(_in_tools(b), ".") for b in BINARIES if os.path.exists(_in_tools(b))]
+datas += [(_in_tools(d), ".") for d in OPTIONAL_DATA if os.path.exists(_in_tools(d))]
 datas += [(p, ".") for p in ("seamripper.ico", "seamripper_256.png",
                              "seamripper_64.png") if os.path.exists(p)]
 
@@ -66,7 +79,7 @@ hiddenimports = [
     "argparse", "glob", "zlib", "keyword", "collections", "tempfile",
     "subprocess", "shutil", "struct", "runpy", "math", "json", "shlex",
     "importlib", "io", "re", "base64", "hashlib", "binascii",
-    "dataclasses", "enum",
+    "dataclasses", "enum", "difflib",   # difflib: the GUI diff view
     "numpy",  # lu_rig.py's bind-pose matrix math; third-party, PyInstaller's
               # Analysis never sees it since tool scripts bundle as data
               # files (see comment below), so it needs to be named explicitly.

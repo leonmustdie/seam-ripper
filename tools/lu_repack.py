@@ -1,32 +1,5 @@
 #!/usr/bin/env python3
-"""lu_repack.py - write an x36 .lu container in RAW (codec=0) mode.
-
-Pairs with naughty_lu.py. Takes an original .lu plus an optional edited
-decompressed image, and emits a raw (uncompressed) container the engine
-can load without an LZX encoder.
-
-Pipeline for text edits:
-  1. naughty_lu.py decompress orig.lu -o image.bin
-  2. edit image.bin (UTF-16 strings)
-  3. lu_repack.py orig.lu --image image.bin -o edited.lu
-
-With no --image it does an identity round-trip (decompress->repack raw),
-which is the test that proves the engine accepts codec=0 containers.
-
-Header layout (mirrors naughty_lu.py LuFile parse, all big-endian):
-  pool info block at  pi = 0x20 + u32(raw, 0x34)
-    pi+0x00 codec          (2=LZX, 0=raw)
-    pi+0x04 image_size      (uncompressed size)
-    pi+0x08 lzx_window      (0 if raw)
-    pi+0x0C segment_count   (1 if raw)
-    pi+0x10 sizes_ptr_rel   (0xFFFFFFFF if raw)
-    pi+0x14 segment_count2  (0 if raw)
-  data region starts at data_base = 0x20 + u32(raw, 0x40)
-
-Everything in raw[0:data_base] (deps, pool, footer, record table) is kept
-verbatim except the six pool fields above. Record offsets are relative to
-the decompressed image, so length-neutral edits need no pointer fix-ups.
-"""
+"""Write an x36 .lu container in raw (uncompressed) mode."""
 import argparse
 import struct
 import sys

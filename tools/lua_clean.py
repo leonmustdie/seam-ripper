@@ -1,24 +1,5 @@
 #!/usr/bin/env python3
-"""lua_clean.py - readability pass for unluac-decompiled Naughty Bear scripts.
-
-Stripped 360 bytecode loses original local names; unluac emits scratch
-registers (L0_6) reused across unrelated values. This pass makes scripts
-followable by:
-
-  1. INLINING register chains:  R = Foo ; R = R(args)  ->  R = Foo(args)
-     (also R.field, R[idx]). Collapses the 3-line register dance unluac
-     produces into single statements.
-  2. FOLDING  R = expr ; GLOBAL = R  ->  GLOBAL = expr   when R dies there.
-  3. Forward-declare cleanup:  G = L0 ; L0 = nil  ->  G = nil.
-
-Heuristic aid, not a decompiler. Logic identical to the raw decompile;
-only presentation changes. Original names are gone (stripped); globals and
-method names ARE preserved and carry the meaning.
-
-Usage:
-  lua_clean.py in.lua -o out.lua
-  lua_clean.py indir/ -o outdir/
-"""
+"""Readability pass for unluac-decompiled Naughty Bear scripts."""
 import argparse, re, sys
 from pathlib import Path
 

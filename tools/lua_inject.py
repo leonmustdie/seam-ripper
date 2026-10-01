@@ -1,20 +1,5 @@
 #!/usr/bin/env python3
-r"""lua_inject.py - one-shot: edited .lua source -> patched .lu, in place.
-
-Runs the whole write chain:
-  luac51 -s  ->  lua_recompile (360 fmt)  ->  lua_chunk_swap (wrap)  ->
-  lu_chunk_replace (rebuild .lu raw, fix offsets)
-
-You give it: the game .lu, which chunk (hash or name), and your edited .lua.
-It finds the original chunk's wrapper inside the .lu automatically, so you
-don't pass it separately.
-
-Usage:
-  lua_inject.py game.lu --name naughtybearsupportedcontrols edited.lua -o game_new.lu
-  lua_inject.py game.lu --hash 0x88bdf6af edited.lua -o game_new.lu
-  # if luac isn't on PATH as luac51/luac5.1/luac, point at it:
-  lua_inject.py ... --luac C:\tools\luac51.exe
-"""
+r"""Patch edited .lua source back into a .lu in place."""
 import argparse, struct, subprocess, sys, shutil, tempfile
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))

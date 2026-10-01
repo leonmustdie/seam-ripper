@@ -1,24 +1,5 @@
 #!/usr/bin/env python3
-"""
-lzx_encode.py — an LZX/XMemCompress ENCODER matching naughty_lu.py's decoder
-bit-for-bit, so real game engines (verified: the PiP retail engine, via
-naughty_lu.LZXDecoder) can load what this writes.
-
-This is the write-side counterpart needed to safely re-compress x36 (NB1)
-pools after a script edit — naughty_lu.py could only decompress before this.
-
-Design: correctness over compression ratio. Every block is LZX_BLOCK_VERBATIM
-(no aligned-offset tree — one less thing to get wrong), matches come from a
-simple greedy LZ77 search (hash-chained), and Huffman trees are standard
-length-limited canonical codes. This will not match retail's compression
-ratio, but the output is a byte-exact XMemCompress stream: round-tripping it
-through naughty_lu.LZXDecoder reproduces the original input exactly (self-
-tested against real retail pool data from NB1's global.lu/levelcommon.lu).
-
-Frame/pool framing (u16 BE compressed-size headers, 0xFF escape frames, the
-Xbox 360 no-pad-after-uncompressed-block quirk) is unaffected by this file —
-that's naughty_lu.py's parse_xmem_frames/rebuild machinery, reused as-is.
-"""
+"""LZX/XMemCompress encoder matching naughty_lu's decoder bit for bit."""
 import struct
 import sys
 from pathlib import Path

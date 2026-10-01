@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""proto360.py - parse a Naughty Bear 360 Lua chunk into a proto tree with
-byte spans, and splice one proto by path. 360 stream is flat-recursive with
-no absolute offsets, so replacing a proto's byte span and reconcatenating is
-valid; parent nproto counts are unchanged.
-
-Proto path = nested index list, e.g. [] is top, [3] is 4th nested fn of top,
-[3,1] is 2nd nested fn of that.
-"""
+"""Parse a Naughty Bear 360 Lua chunk into a proto tree and splice protos."""
 import struct
 
 HDR_LEN = 13  # 360 header (doubled number-size byte)
@@ -76,7 +69,20 @@ def splice(orig_chunk, new_chunk, path):
     nnode = find(nt, path)
     os_, oe = onode["span"]
     ns_, ne = nnode["span"]
-    return orig_chunk[:os_] + new_chunk[ns_:ne] + orig_chunk[oe:]
+    seg = bytearray(new_chunk[ns_:ne])
+    # Keep the original's linedefined / lastlinedefined, for the spliced
+    # function and every function nested in it. They are debug stamps -
+    # only error messages and debug.getinfo read them - but they come from
+    # whatever file was compiled, so without this an edit also changed
+    # line numbers the modder never touched.
+    def keep_lines(o, n):
+        o_at = o["span"][0] + 4 + _u32(orig_chunk, o["span"][0])
+        n_at = n["span"][0] + 4 + _u32(new_chunk, n["span"][0]) - ns_
+        seg[n_at:n_at + 8] = orig_chunk[o_at:o_at + 8]
+        for ok, nk in zip(o["kids"], n["kids"]):
+            keep_lines(ok, nk)
+    keep_lines(onode, nnode)
+    return orig_chunk[:os_] + bytes(seg) + orig_chunk[oe:]
 
 def proto_bytes(chunk, path):
     t, _ = parse(chunk)

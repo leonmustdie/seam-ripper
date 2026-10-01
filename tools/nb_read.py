@@ -1,16 +1,5 @@
 #!/usr/bin/env python3
-r"""nb_read.py - one call: a .lu + a chunk name -> readable, tagged Lua source.
-
-Does the whole read half for you: pulls the chunk out of the .lu, transcodes
-it to a standard .luac, runs nb_decompile, and leaves you a <chunk>.lua whose
-functions are stamped FAITHFUL / DIVERGENT so you know what is safe to edit.
-
-usage (Windows, no luadec):
-  python nb_read.py game.lu naughtybearhatbonus -o hatbonus.lua
-  # uses unluac.jar + luac51.exe sitting next to the scripts
-
-  python nb_read.py game.lu --hash 0xd88bd830 -o out.lua --luadec   # luadec backend
-"""
+r"""Read a .lu chunk as readable, tagged Lua source."""
 import argparse, subprocess, sys, tempfile
 from pathlib import Path
 HERE = Path(__file__).resolve().parent

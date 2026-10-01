@@ -1,17 +1,5 @@
 #!/usr/bin/env python3
-"""
-lu_rig.py — export rigged glTF (.glb) characters from Naughty Bear .lu extractions.
-
-Combines a skeleton chunk (type 04000001) with a skinned mesh chunk
-(type 04000007) into a single .glb with full joint hierarchy, bind pose,
-and vertex weights. Bone names are not stored in the shipped files (only
-hashes), so joints are auto-named from the hash plus a positional guess
-(left_/right_/center_ by bind X, rough body region by height).
-
-usage:
-  python3 lu_rig.py <extracted_unit_dir> -o out.glb
-  python3 lu_rig.py /tmp/big_extract/naughtybear -o naughtybear_rigged.glb
-"""
+"""Export rigged glTF (.glb) characters from Naughty Bear .lu extractions."""
 import argparse
 import json
 import math
@@ -549,7 +537,7 @@ def build_glb(bones, submeshes, mapping, out_path, texture_index=None,
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
+    ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("unit", help="extracted unit directory (e.g. "
                                  "lu_extracted/naughtybear)")
     ap.add_argument("-o", "--out", required=True, help="output .glb path")

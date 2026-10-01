@@ -1,18 +1,5 @@
 #!/usr/bin/env python3
-r"""lua_readable.py - produce readable AND injectable Lua source from a unit.
-
-Pipeline per script chunk:
-  transcode (raw hashes) -> unluac -> lua_clean (inline/fold) -> annotate
-  -> VERIFY: luac + lua_recompile must produce valid 360 bytecode.
-
-Output is readable source where every hash is a "__hash_0x..." placeholder
-with its resolved name in a trailing comment. Files that fail verification
-are reported and written to a _FAILED subdir so you know not to inject them.
-
-Usage:
-  lua_readable.py <extract-dir> -o readable --luac luac51.exe
-  # <extract-dir> is the naughty_lu.py extract output (has <unit>/animation/*.bin)
-"""
+r"""Produce readable, injectable Lua source from a unit."""
 import argparse, re, subprocess, sys, shutil
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))

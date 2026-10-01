@@ -1,24 +1,11 @@
 #!/usr/bin/env python3
-r"""nb_inject.py - apply ONE edited function into a game .lu, keeping every
-other function's original bytecode byte-for-byte.
-
-You give: the .lu, the chunk (by --name or --hash), your edited full source,
-and which function you changed (--path, e.g. 0_3 from luadec's
-`-- function num :` comment). It recompiles your source, lifts only that
-function's proto, splices it into the original chunk, and rewrites the .lu.
-
-Because non-target functions come from the ORIGINAL chunk, the decompiler's
-fidelity on the rest of the file is irrelevant. The target function must keep
-its original upvalue count and parameter count (edit the body, not the
-signature) and the source must compile to the same function-tree shape.
-
-usage:
-  nb_inject.py game.lu --name globalmenu edited.lua --path 0_7 -o game_new.lu
-"""
+r"""Inject one edited function into a .lu, keeping all other bytecode."""
 import argparse, subprocess, sys, shutil
 from pathlib import Path
-import os as _os, tempfile as _tf
-TMPDIR = _tf.gettempdir()
+import atexit as _atexit, os as _os, shutil as _shutil, tempfile as _tf
+# private per process, so two runs at once never share these files
+TMPDIR = _tf.mkdtemp(prefix="seamripper_")
+_atexit.register(_shutil.rmtree, TMPDIR, True)
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import lua_recompile, lua_chunk_swap, proto360

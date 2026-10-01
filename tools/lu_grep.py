@@ -1,19 +1,5 @@
 #!/usr/bin/env python3
-"""lu_grep.py - search UTF-16 localization text across many .lu files.
-
-Scans every .lu in a folder, decompresses, extracts strings, and prints
-matches as:  FILE  HASH  text
-
-Usage:
-  lu_grep.py PATTERN  path/to/lu/            # search a folder (recursive)
-  lu_grep.py PATTERN  a.lu b.lu              # search specific files
-  lu_grep.py -i PATTERN folder/              # case-insensitive
-  lu_grep.py -e PATTERN folder/              # PATTERN is a regex
-  lu_grep.py --list-files folder/            # just show which .lu have text
-
-Pairs with lu_strings.py: copy the printed HASH into the extracted
-strings.txt for that FILE to edit it.
-"""
+"""Search UTF-16 localization text across many .lu files."""
 import argparse
 import re
 import sys

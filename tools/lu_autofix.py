@@ -1,29 +1,5 @@
 #!/usr/bin/env python3
-"""lu_autofix.py - conservative batch typo fixer for x36 .lu localization.
-
-Design rules:
-  * NEVER touch slang or stylistic text (narrator glitch-speech, "wayyy",
-    "BOO!", ". . ." ellipsis). Slang allowlist is honored everywhere.
-  * NEVER auto-collapse double spaces. Inter-word double spacing may be
-    deliberate layout/alignment for Scaleform. Double spaces are only ever
-    *reported* for human review, never changed automatically.
-  * Auto-fix ONLY unambiguous spelling errors (a misspelled word is wrong
-    regardless of formatting). These come from a vetted dictionary.
-
-Two modes:
-  report   scan files, print every candidate as reviewable TSV
-             FILE  HASH  KIND  detail  text
-           KIND = spell (auto-fixable) | spacing (review-only) | punct (review-only)
-  fix      apply ONLY spelling fixes from the vetted dict, across files,
-           writing raw .lu outputs. Spacing/punct never auto-applied.
-           --from REVIEW.tsv  optionally restrict spelling fixes to HASHes you
-           approved (lines you kept), so even spelling is opt-in.
-
-Usage:
-  lu_autofix.py report lu/ > review.tsv
-  lu_autofix.py fix lu/ -o out/                 # all vetted spelling fixes
-  lu_autofix.py fix lu/ -o out/ --from review.tsv   # only approved HASHes
-"""
+"""Batch-fix typos in x36 .lu localization text."""
 import argparse
 import re
 import sys

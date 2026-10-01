@@ -1,32 +1,5 @@
 #!/usr/bin/env python3
-"""
-pip_dump.py — dump everything currently decodable from Naughty Bear:
-Panic in Paradise .lu/.cu files (LUH containers).
-
-PiP is a separate game from the original Naughty Bear; use lu_dump.py
-for NB1 files. This tool only processes LUH-format files and never
-runs NB1-only decoders on PiP data. x36-format files found in the
-input are listed in the report and skipped (point lu_dump.py at them).
-
-what it produces today:
-  dump/extracted/<unit>/...    raw chunks by type (manifest.tsv each)
-  dump/textures/<unit>/*.png   all textures (format identical to NB1)
-  dump/skeletons/<unit>.txt    per-skeleton bone reports
-  dump/characters/*.glb        rigged character/costume meshes (skeleton
-                               + weights, via lu_rig)
-  dump/props/*.obj|.glb        rigid prop meshes (34000007 shares NB1's
-                               inner container; converted directly)
-  dump/audio/*.txt             .cu sound manifests
-  dump/report.txt              everything decoded / skipped, with reasons
-
-not yet decoded for PiP (skipped safely, listed in the report):
-  animation clips (reworked curve encoding) and Scaleform GFx front-end
-  contents (04d00001 CFX chunks extract raw; they are zlib-compressed
-  Flash and need a GFx toolchain to edit).
-
-usage:
-  python3 pip_dump.py <game_folder_or_files...> -o pipdump/
-"""
+"""Dump everything decodable from Panic in Paradise .lu/.cu files."""
 import argparse
 import shutil
 import sys

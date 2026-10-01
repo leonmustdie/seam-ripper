@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""widen size_t fields 4 -> 8 in standard Lua 5.1 bytecode.
-
-transcode() emits headers with size_t=4. A 64-bit Lua rejects them.
-Only String length fields are size_t; widen each, flip header byte 8.
-"""
+"""Widen size_t fields from 4 to 8 bytes in Lua 5.1 bytecode."""
 import struct, sys
 from pathlib import Path
 

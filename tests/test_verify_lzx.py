@@ -8,9 +8,9 @@ are synthetic: no retail game data ships with the toolkit or this test.
 Two things are being guarded specifically because they were real, found bugs
 this session, not hypothetical ones:
   - test_structural_fails_on_misaligned_records reproduces the exact class of
-    bug that shipped a crashing NB1 build: a resized chunk splice shifted
-    every later record off the 16-byte grid, and nothing caught it before
-    boot time.
+    bug that shipped a crashing NB1 build: a resized chunk splice moved
+    later records off the spot the engine expects, and nothing caught it
+    before boot time.
   - test_independent_fails_on_corrupted_payload guards the reason the
     independent-decode leg exists at all: a decoder written by the same
     author as the encoder can share its blind spots, so this asserts the
@@ -29,6 +29,7 @@ import lzx_encode
 import verify_lzx
 from naughty_lu import LuRecord
 
+ALIGN16 = 0x04 << 24  # flags top byte: log2 of the record's alignment
 WBITS = 15  # smallest valid window (naughty_lu.POSITION_SLOTS); plenty for
             # a fixture this small, and fast to compress.
 
@@ -59,14 +60,14 @@ def _well_formed_fixture():
     after the first, matching retail convention. Returns (records, image)."""
     rec0 = b"A" * 20
     pad = b"\xBF" * 12
-    rec1 = b"B" * 32
+    rec1 = b"B" * 300           # long enough that LZX output is shorter
     image = rec0 + pad + rec1
     records = [
-        LuRecord(0, 0x1111, 0, len(rec0), 0, 0),
-        LuRecord(1, 0x2222, 0, len(rec1), len(rec0) + len(pad), 0),
+        LuRecord(0, 0x1111, 0, len(rec0), 0, ALIGN16),
+        LuRecord(1, 0x2222, 0, len(rec1), len(rec0) + len(pad), ALIGN16),
     ]
     assert records[1].offset == 32          # 16-aligned
-    assert len(image) == 64
+    assert len(image) == 332
     return records, image
 
 
@@ -93,8 +94,8 @@ class TestStructural(unittest.TestCase):
         lu = FakeLu(records, image)
         with self.assertRaises(verify_lzx.VerifyError) as cm:
             verify_lzx.check_structural(lu)
-        self.assertIn("not 16-byte aligned", str(cm.exception))
-        self.assertIn(": 1", str(cm.exception))   # names record index 1
+        self.assertIn("record 1 starts at 0x19", str(cm.exception))
+        self.assertIn("expects it at 0x20", str(cm.exception))
 
     def test_fails_on_bad_gap_padding(self):
         records, image = _well_formed_fixture()
@@ -115,6 +116,38 @@ class TestStructural(unittest.TestCase):
         with self.assertRaises(verify_lzx.VerifyError) as cm:
             verify_lzx.check_structural(lu)
         self.assertIn("overlap", str(cm.exception))
+
+    def test_fails_on_gap_one_boundary_too_far(self):
+        """The shape of the level-load crash: a 16-byte step inserted after a
+        record that grew, so the next record sits one boundary too late."""
+        records, image = _well_formed_fixture()
+        records[1].offset = 48
+        image = image[:32] + b"\xBF" * 16 + image[32:]
+        lu = FakeLu(records, image)
+        with self.assertRaises(verify_lzx.VerifyError) as cm:
+            verify_lzx.check_structural(lu)
+        self.assertIn("expects it at 0x20", str(cm.exception))
+
+    def test_uses_each_records_own_alignment(self):
+        """Texture and mesh records align to 2048+ bytes, not 16."""
+        rec0 = b"A" * 20
+        rec1 = b"B" * 300
+        ok = rec0 + b"\xBF" * (2048 - 20) + rec1
+        big = 0x0B << 24
+        records = [LuRecord(0, 0x1111, 0, 20, 0, ALIGN16),
+                   LuRecord(1, 0x2222, 0, 300, 2048, big)]
+        self.assertIn("structural OK",
+                      verify_lzx.check_structural(FakeLu(records, ok)))
+        records[1].offset = 32
+        with self.assertRaises(verify_lzx.VerifyError) as cm:
+            verify_lzx.check_structural(FakeLu(records, rec0 + b"\xBF" * 12 + rec1))
+        self.assertIn("next 2048-byte boundary", str(cm.exception))
+
+    def test_accepts_segment_stored_raw(self):
+        """Small retail containers store their one segment uncompressed."""
+        records, image = _well_formed_fixture()
+        lu = FakeLu(records, image, bytes(image))
+        self.assertIn("structural OK", verify_lzx.check_structural(lu))
 
     def test_fails_on_missing_terminator(self):
         records, image = _well_formed_fixture()

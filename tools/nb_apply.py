@@ -1,16 +1,5 @@
 #!/usr/bin/env python3
-r"""nb_apply.py - one call: inject your edited function AND re-stage the .lu
-into your build's assets\lu so the game picks it up.
-
-Wraps nb_inject.py, then copies the rebuilt .lu into --stage (your build's
-lu folder). Keeps a .bak of whatever it overwrites there.
-
-usage:
-  python nb_apply.py game.lu --name naughtybearhatbonus hatbonus.lua --path 0_0 ^
-      -o game_new.lu --stage .\out\build\win-amd64-release\assets\lu
-
-If --stage is omitted it just injects (same as nb_inject.py).
-"""
+r"""Inject an edited function and re-stage the .lu into your build."""
 import argparse, subprocess, sys, shutil
 from pathlib import Path
 HERE = Path(__file__).resolve().parent
@@ -40,9 +29,9 @@ def main():
             sys.exit(f"--stage dir does not exist: {stage}")
         dest = stage / Path(a.lu).name      # stage under the ORIGINAL lu's name
         if dest.exists():
-            shutil.copy2(dest, dest.with_suffix(dest.suffix + ".bak"))
+            shutil.copyfile(dest, dest.with_suffix(dest.suffix + ".bak"))
             print(f"backed up existing -> {dest.name}.bak")
-        shutil.copy2(a.out, dest)
+        shutil.copyfile(a.out, dest)
         print(f"staged {a.out} -> {dest}")
         print("run the game to test.")
     else:

@@ -1,14 +1,5 @@
 #!/usr/bin/env python3
-"""rename_luadec.py - give luadec's l_<f>_<i> locals usage-based names.
-
-Local names are stripped by `luac -s`, so any collision-free renaming
-compiles to identical bytecode. The caller verifies that externally; this
-module only proposes names from how each register is first assigned/used.
-
-A token l_A_B reused across sibling functions takes its dominant meaning;
-for single-scope scripts the name is exact. Names never collide with Lua
-keywords, the script's globals, or each other within the file.
-"""
+"""Give luadec's locals usage-based names."""
 import re, sys, keyword as _kw
 from pathlib import Path
 

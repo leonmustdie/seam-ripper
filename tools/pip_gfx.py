@@ -1,27 +1,5 @@
 #!/usr/bin/env python3
-"""
-pip_gfx.py — extract Scaleform UI movies and their textures from
-Panic in Paradise .lu files (or already-extracted 04d00001 chunks).
-
-PiP's UI chunks (record type 04d00001) each contain:
-  1. a GFx movie ('CFX' = zlib-compressed, 'GFX' = stored) — the vector
-     shell, layout and actionscript,
-  2. an image table of {name_offset, name_length, data_offset,
-     data_size} big-endian quads,
-  3. the referenced images as standard little-endian DDS files
-     (DXT1/3/5, written by gfxexport at build time — no console tiling).
-
-The movie references its images by filename via GFx tag 1009
-(DefineExternalImage2); the engine resolves those names against the
-embedded blob at load time.
-
-output per movie:  <name>.gfx  +  <name>/<image>.png  (.dds if Pillow
-is missing or the format is exotic)
-
-usage:
-  python3 pip_gfx.py <files.lu | chunks.bin | movies.gfx ...> -o out/
-  python3 pip_gfx.py briefingscreen.lu -o ui/ --dds   # keep raw DDS too
-"""
+"""Extract Scaleform UI movies and textures from Panic in Paradise .lu files."""
 import argparse
 import io
 import struct
@@ -137,7 +115,7 @@ def process_lu(path, outdir, keep_dds=False, quiet=False):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
+    ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("inputs", nargs="+", help=".lu files, chunk .bin files, or .gfx files")
     ap.add_argument("-o", "--out", default="ui_out", help="output directory")
     ap.add_argument("--dds", action="store_true", help="also keep raw .dds files")

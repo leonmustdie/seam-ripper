@@ -131,6 +131,14 @@ class WindowTests(GuiCase):
                     "Repack raw image"):
             self.assertIn(old, titles)
 
+    def test_tools_open_without_a_game_folder(self):
+        w = self.window()
+        self.assertIsNone(w.ctx.project)
+        self.assertEqual(w.root_stack.currentIndex(), 0)       # welcome screen
+        w.welcome.extract_disc.emit()
+        self.assertEqual(w.root_stack.currentIndex(), 1)
+        self.assertIn("Extract game disc (.iso)", w.tools_page.forms)
+
     def test_form_builds_the_same_command_line_as_before(self):
         from sr_gui import toolspecs
         from sr_gui.widgets import ToolForm

@@ -15,7 +15,8 @@ NB1 came on disc, so you start from a disc image (`.iso`) of your copy.
 If your Tools page has no **Extract game disc** button, download Seam Ripper
 again from the Releases page; the first 2.0 download didn't have it yet.
 
-1. In Seam Ripper, open **Tools → Extract game disc (.iso)**.
+1. In Seam Ripper, click **Extract a game disc (.iso)…** on the start screen
+   (or open **Tools → All tools…** and pick **Extract game disc (.iso)**).
 2. Pick your `.iso` and a folder to put the files in.
 3. Click **Run**. It takes a minute or so.
 

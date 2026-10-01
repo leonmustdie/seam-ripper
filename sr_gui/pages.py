@@ -474,6 +474,7 @@ class ToolsPage(QWidget):
 class WelcomePage(QWidget):
     open_folder = Signal()
     open_recent = Signal(str)
+    extract_disc = Signal()
 
     def __init__(self, settings):
         super().__init__()
@@ -491,6 +492,10 @@ class WelcomePage(QWidget):
         b = QPushButton("Open game folder…")
         b.setObjectName("primary")
         b.clicked.connect(self.open_folder)
+        v.addWidget(b)
+        b = QPushButton("Extract a game disc (.iso)…")
+        b.setToolTip("No game folder yet? Get one from your Naughty Bear disc image.")
+        b.clicked.connect(self.extract_disc)
         v.addWidget(b)
         self.recent_label = label("Recent projects", "muted")
         self.recent = QListWidget()

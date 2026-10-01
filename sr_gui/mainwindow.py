@@ -120,6 +120,7 @@ class Main(QMainWindow):
         self.welcome = WelcomePage(self.settings)
         self.welcome.open_folder.connect(self.choose_folder)
         self.welcome.open_recent.connect(self.open_project)
+        self.welcome.extract_disc.connect(lambda: self.open_tool("Extract game disc (.iso)"))
         self.root_stack.addWidget(self.welcome)
         self.root_stack.addWidget(self._workspace())
         split = QSplitter(Qt.Vertical)
@@ -405,7 +406,8 @@ class Main(QMainWindow):
         self.central.setCurrentIndex(i)
         if i == HISTORY:
             self.history.refresh()
-        if self.root_stack.currentIndex() == 0 and self.ctx.project:
+        # the tools work without a game folder (one of them makes it)
+        if self.root_stack.currentIndex() == 0 and (self.ctx.project or i == TOOLS):
             self.root_stack.setCurrentIndex(1)
 
     def _run_started(self, title):

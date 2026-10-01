@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: How to use Seam Ripper
+    url: https://github.com/leonmustdie/seam-ripper#readme
+    about: Start here if you're not sure how something works.
+  - name: What the game's scripts do
+    url: https://leonmustdie.github.io/seam-ripper/
+    about: Docs on hats, bear stats, scoring, PiP weapons and more.

@@ -1,0 +1,72 @@
+name: Bug report
+description: Something in Seam Ripper doesn't work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! The more of this you fill in, the faster it can be fixed.
+        Please don't attach game files. Seam Ripper can't share them, and neither can this page.
+
+  - type: input
+    id: version
+    attributes:
+      label: Seam Ripper version
+      description: Help → About shows it.
+      placeholder: "2.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: game
+    attributes:
+      label: Game
+      options:
+        - Naughty Bear
+        - "Naughty Bear: Panic in Paradise"
+        - Both
+        - Not game-specific
+    validations:
+      required: true
+
+  - type: input
+    id: file
+    attributes:
+      label: File and script
+      description: Which .lu file, and which script if you were editing one.
+      placeholder: "naughtyisland.lu, naughtyisland_npcs"
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, step by step, what you expected, and what happened instead.
+      placeholder: |
+        1. Opened ...
+        2. Clicked Ship ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Copy everything from the Log tab at the bottom of Seam Ripper. This is the most useful part.
+      render: text
+
+  - type: dropdown
+    id: modded
+    attributes:
+      label: Were the game files already modded?
+      options:
+        - "No, retail files"
+        - "Yes, by Seam Ripper"
+        - "Yes, by something else"
+        - "Not sure"
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Screenshots, a .srpatch if it's a patch problem, or where you play the game (restuff, Xenia, a real 360).

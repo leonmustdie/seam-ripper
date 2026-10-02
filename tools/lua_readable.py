@@ -4,6 +4,7 @@ import argparse, re, subprocess, sys, shutil
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lua_decompile as L
+import naughty_lu
 import lua_recompile
 import lua_clean
 import lua_annotate
@@ -43,7 +44,7 @@ def main():
     jar = Path(a.jar)
 
     ok=fail=0; failed=[]
-    for binf in sorted(Path(a.extract).glob("*/animation/*.bin")):
+    for binf in naughty_lu.script_chunk_files(a.extract):
         raw = binf.read_bytes()
         sig = raw.find(b"\x1bLua")
         if sig < 0 or raw[sig+4] != 0x51: continue

@@ -691,8 +691,9 @@ def cmd_extract(args):
 
     n = empty = dupe = 0
     seen = {}
+    import naughty_lu
     for root in args.roots:
-        for p in sorted(Path(root).glob("*/animation/*.bin")):
+        for p in naughty_lu.script_chunk_files(root):
             d = p.read_bytes()
             if not d:
                 empty += 1

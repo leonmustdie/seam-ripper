@@ -125,11 +125,11 @@ def main():
                     n_obj += 1
                 except Exception: pass
     report.append(f"rigged character GLBs: {n_glb}; rigid prop OBJs: {n_obj}")
-    # scripts: PiP ships plaintext Lua source in animation chunks
+    # scripts: PiP ships plaintext Lua source in script chunks
     sdir = out / "scripts"
     n_lua = 0
     for u in units:
-        for c in sorted(u.glob("animation/*.bin")):
+        for c in naughty_lu.script_chunk_files(u, nested=False):
             r = pip_scripts.extract_lua(c.read_bytes())
             if r and len(r[1].strip()) > 2:
                 rel, src = r

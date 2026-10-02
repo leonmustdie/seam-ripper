@@ -196,12 +196,13 @@ def main():
 
     n_ok = n_src = n_fail = n_notlua = 0
     seen = set()
+    import naughty_lu
     for root in args.roots:
-        for p in sorted(Path(root).glob("*/animation/*.bin")):
+        for p in naughty_lu.script_chunk_files(root):
             raw = p.read_bytes()
             # SAFETY: only chunks that verifiably contain a Lua 5.1
             # image are treated as scripts. PiP (and possibly other)
-            # chunks under animation/ are reference stubs, not Lua —
+            # script chunks are reference stubs, not Lua —
             # touching them as bytecode would produce garbage.
             sig = raw.find(b"\x1bLua")
             if sig < 0 or sig + 5 >= len(raw) or raw[sig + 4] != 0x51:

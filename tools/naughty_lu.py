@@ -563,10 +563,11 @@ class LuRecord:
 
 # Human-readable directory names for known chunk types. Anything not listed
 # falls back to type_<hex> (see LuRecord.type_name), which is a fine, stable
-# name — the map is purely cosmetic for extraction output.
+# name. Script readers find chunks by these folder names, so use
+# script_chunk_files() rather than globbing a name directly.
 TYPE_NAMES = {
     0x04000001: "unk_04000001",     # skeleton
-    0x04B00000: "animation",        # scripts (bytecode NB1 / source PiP)
+    0x04B00000: "script",           # scripts (bytecode NB1 / source PiP)
     0x14200007: "texture",          # NB1 texture
     0x34200007: "type_34200007",    # PiP texture
     0x04000007: "mesh_buffers",     # NB1 mesh
@@ -574,6 +575,22 @@ TYPE_NAMES = {
     0x04D00013: "type_04d00013",    # PiP string table
     0x04D00001: "type_04d00001",    # PiP Scaleform UI
 }
+
+# Extraction folders that hold script chunks. Seam Ripper 2.0 and earlier
+# named the folder "animation" (the chunks are scripts, not animation data),
+# so readers accept both and older extractions keep working.
+SCRIPT_DIRS = ("script", "animation")
+
+
+def script_chunk_files(folder, nested=True):
+    """Sorted script chunk files (.bin) in an extraction. nested=True looks in
+    <folder>/<unit>/<script dir>/, nested=False in <folder>/<script dir>/."""
+    pattern = "*/{}/*.bin" if nested else "{}/*.bin"
+    found = []
+    for d in SCRIPT_DIRS:
+        found += Path(folder).glob(pattern.format(d))
+    return sorted(found)
+
 
 # Pool names keyed by the high byte of the record flags field.
 POOL_NAMES = {0x00: "pool_00"}

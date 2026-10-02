@@ -28,4 +28,6 @@ app is in the [README](https://github.com/leonmustdie/seam-ripper#readme).
   and [weapons and outfits](scripts/pip-weapons-and-outfits.md) (PiP).
 * [Technical notes](technical.md): file formats, the decompiler, PiP
   internals.
+* [PiP: June 26th Beta Discoveries](pip-june26-beta.md): getting the beta's debug
+  "zoo" levels to run, and why they hang.
 * [Command-line tools](cli.md): every tool, and building the EXE.

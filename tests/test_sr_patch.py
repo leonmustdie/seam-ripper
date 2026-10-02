@@ -16,7 +16,9 @@ sys.path.insert(0, str(TOOLS))
 
 import sr_patch as P
 
-NB1 = Path(r"D:\testingenvironment\initialnb1files\lu")
+import game_paths
+
+NB1 = game_paths.NB1_DIR
 BONE = NB1 / "bone.lu"
 have_nb1 = BONE.exists() and any((TOOLS / n).exists() for n in ("lzxverify.exe", "lzxverify"))
 

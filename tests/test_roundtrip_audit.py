@@ -6,7 +6,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 
-RETAIL = Path(r"D:\testingenvironment\initialnb1files\lu\normalbear.lu")
+import game_paths
+
+RETAIL = game_paths.NB1_DIR / "normalbear.lu"
 
 
 @unittest.skipUnless(RETAIL.exists(), "retail normalbear.lu not available")

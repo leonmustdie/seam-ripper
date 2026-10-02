@@ -20,7 +20,9 @@ if HAVE_QT:
     from sr_gui.patches_page import PatchDialog
     from sr_gui.shipping import Copy, Where
 
-BONE = Path(r"D:\testingenvironment\initialnb1files\lu\bone.lu")
+import game_paths
+
+BONE = game_paths.NB1_DIR / "bone.lu"
 TOOLS = Path(__file__).resolve().parent.parent / "tools"
 have_bone = BONE.exists() and any((TOOLS / n).exists() for n in ("lzxverify.exe", "lzxverify"))
 

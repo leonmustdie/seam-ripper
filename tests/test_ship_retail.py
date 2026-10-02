@@ -17,9 +17,11 @@ HERE = Path(__file__).resolve().parent
 TOOLS = HERE.parent / "tools"
 sys.path.insert(0, str(TOOLS))
 
-NB1 = Path(r"D:\testingenvironment\initialnb1files\lu")
+import game_paths
+
+NB1 = game_paths.NB1_DIR
 GLOBAL = NB1 / "global.lu"
-PIP = Path(r"C:\Users\slmw0\Fuck\pip_full\global.lu")
+PIP = game_paths.PIP_DIR / "global.lu"
 LUAC = TOOLS / "luac51.exe"
 SR_ERROR = re.compile(r'^SR-ERROR file="([^"]*)" line=(\d+) kind=(\w+): ', re.M)
 

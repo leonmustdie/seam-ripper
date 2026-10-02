@@ -11,7 +11,9 @@ sys.path.insert(0, str(TOOLS))
 from naughty_lu import LuFile
 from lu_chunk_replace import relayout, record_alignment
 
-RETAIL = Path(r"D:\testingenvironment\initialnb1files\lu")
+import game_paths
+
+RETAIL = game_paths.NB1_DIR
 NORMALBEAR = RETAIL / "normalbear.lu"
 SCRIPT = 2773   # basenpcbodystatemachine, followed by two in-image records
 

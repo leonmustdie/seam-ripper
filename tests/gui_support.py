@@ -18,10 +18,11 @@ try:
 except ImportError:                                     # pragma: no cover
     HAVE_QT = False
 
-NB1_CANDIDATES = [Path(r"D:\testingenvironment\initialnb1files\lu"),
-                  Path(r"C:\Users\slmw0\Fuck\uh")]
+import game_paths
+
+NB1_CANDIDATES = [game_paths.NB1_DIR]
 NB1 = next((p for p in NB1_CANDIDATES if (p / "global.lu").exists()), None)
-PIP = Path(r"C:\Users\slmw0\Fuck\pip_full")
+PIP = game_paths.PIP_DIR
 
 
 def pump(cond, timeout=90):

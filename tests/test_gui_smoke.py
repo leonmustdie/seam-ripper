@@ -19,8 +19,10 @@ try:
 except ImportError:                                     # pragma: no cover
     HAVE_QT = False
 
-CANDIDATES = [Path(r"D:\testingenvironment\initialnb1files\lu"), Path(r"C:\Users\slmw0\Fuck\uh")]
-PIP = Path(r"C:\Users\slmw0\Fuck\pip_full")
+import game_paths
+
+CANDIDATES = [game_paths.NB1_DIR]
+PIP = game_paths.PIP_DIR
 GAME = next((p for p in CANDIDATES if (p / "global.lu").exists()), None)
 
 

@@ -18,8 +18,9 @@ import pip_scripts
 import sr_search
 
 # a folder holding the retail NB1 global.lu; the test skips without it
-RETAIL_GLOBAL = Path(os.environ.get("SR_TEST_NB1_GLOBAL_DIR",
-                                    r"C:\Users\slmw0\Fuck\uh"))
+import game_paths
+
+RETAIL_GLOBAL = game_paths.NB1_DIR
 
 
 def script_chunk(name, src):

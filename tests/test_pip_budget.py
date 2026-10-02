@@ -13,7 +13,9 @@ sys.path.insert(0, str(TOOLS))
 
 import pip_scripts
 
-PIP = Path(r"C:\Users\slmw0\Fuck\pip_full")
+import game_paths
+
+PIP = game_paths.PIP_DIR
 LOADERS = PIP / "levelloaders.lu"
 
 

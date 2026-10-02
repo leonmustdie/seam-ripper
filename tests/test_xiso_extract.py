@@ -14,9 +14,10 @@ sys.path.insert(0, str(TOOLS))
 
 import xiso_extract as X  # noqa: E402
 
-RETAIL_ISO = Path(r"C:\Users\slmw0\Downloads\Naughty Bear - Gold Edition (USA) (En,Fr,De,Es,It)"
-                  r"\Naughty Bear - Gold Edition (USA) (En,Fr,De,Es,It).iso")
-RETAIL_LU = Path(r"D:\testingenvironment\initialnb1files\lu")
+import game_paths
+
+RETAIL_ISO = game_paths.NB1_ISO
+RETAIL_LU = game_paths.NB1_DIR
 
 
 def table(entries):

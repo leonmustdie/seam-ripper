@@ -46,6 +46,20 @@ def _squeeze(src, budget):
     return src
 
 
+def pad_to_original(src, original_len):
+    """Pad a script that came out SHORTER than the one it replaces back to the
+    original length with trailing spaces. The engine lays the records of a
+    container out by their sizes, so a script that shrinks moves every record
+    after it and the game fails to load a level (verified on retail PiP: a
+    squeezed script 59 to 1,760 bytes smaller hung Stage 1 at load; the same
+    edits padded back to their exact original size loaded). Trailing
+    whitespace is invisible to Lua. A script that grew into the padding after
+    its slot is left as it is: its record still ends in the same slot."""
+    if len(src) < original_len:
+        src = src + b" " * (original_len - len(src))
+    return src
+
+
 def squeeze_lua(src, budget):
     """Reclaim space to fit an edited script back into its original slot,
     using ONLY safe, non-structural transforms and stopping the instant it
@@ -330,6 +344,7 @@ def cmd_inject(args):
             sys.exit(f"inject: {ep.name} is {len(src) - budget} bytes too "
                      f"large for its slot even after squeezing "
                      f"(slot allows {budget} source bytes); trim the script")
+        src = pad_to_original(src, old_len)
         parts["src"] = src
         new_chunks[best] = build_script_chunk(parts)
         print(f"  {ep.name} -> record {best} "

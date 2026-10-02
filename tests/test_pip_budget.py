@@ -157,7 +157,10 @@ class BudgetAgreesWithInject(unittest.TestCase):
                           over["needs_squeeze"]), (-1, True, True))
         ok, stored = self.inject(index, edit(k + 1))
         self.assertTrue(ok)
-        self.assertEqual(len(stored), limit - over["bytes_left_squeezed"])
+        # a script is never written shorter than the original (padded with
+        # spaces), so the record keeps its size
+        self.assertEqual(len(stored), max(len(self.slots[index]["src"]),
+                                          limit - over["bytes_left_squeezed"]))
         # squeezed boundary: exactly at the limit after squeezing everything
         # the injector may reclaim, then one byte more
         tail = "   "                            # trailing spaces to reclaim
@@ -192,7 +195,8 @@ class BudgetAgreesWithInject(unittest.TestCase):
         self.assertEqual(b["hashes"], [["foo", 2356372769]])
         self.assertEqual(b["edited_size"], len(b"a = 2356372769\r\n"))
         ok, stored = self.inject(12, 'a = HASH("foo")\n')
-        self.assertEqual(stored, b"a = 2356372769\r\n")
+        self.assertEqual(stored.rstrip(b" "), b"a = 2356372769\r\n")
+        self.assertEqual(len(stored), len(self.slots[12]["src"]))   # padded to the original size
 
     def test_resolve_by_name(self):
         b = pip_scripts.budget(LOADERS, "combatzooloaderscript", "x = 1\n")

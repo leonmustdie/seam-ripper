@@ -420,6 +420,7 @@ def _pip_fit(lu, index, e):
     info["spare"] = budget - len(src)
     if not info["fits"]:
         return None, info
+    src = pip_scripts.pad_to_original(src, len(parts["src"]))     # never shrink the record
     parts["src"] = src
     return pip_scripts.build_script_chunk(parts), info
 

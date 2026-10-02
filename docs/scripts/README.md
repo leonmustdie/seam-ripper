@@ -1,6 +1,7 @@
 ---
 title: Script reference
-nav_order: 3
+parent: Game reference
+nav_order: 1
 has_children: true
 permalink: /scripts/
 ---

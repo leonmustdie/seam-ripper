@@ -1,6 +1,7 @@
 ---
 title: Bear stats
 parent: Script reference
+grand_parent: Game reference
 nav_order: 2
 ---
 

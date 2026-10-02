@@ -1,6 +1,7 @@
 ---
 title: Naughty's hats
 parent: Script reference
+grand_parent: Game reference
 nav_order: 1
 ---
 

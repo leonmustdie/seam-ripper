@@ -1,6 +1,7 @@
 ---
 title: Command-line tools
-nav_order: 5
+parent: Seam Ripper reference
+nav_order: 3
 ---
 
 # Command-line tools

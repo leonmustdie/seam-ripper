@@ -68,7 +68,9 @@ If you play NB1 through restuff, set its folder in **Settings → Play**. **Ship
 
 ## More
 
-* [docs/technical.md](docs/technical.md): file formats, how the decompiler works, PiP internals
+* [docs/technical.md](docs/technical.md): how Seam Ripper works: Ship, the decompiler, hashed names
+* [docs/game-files.md](docs/game-files.md): file formats and PiP internals
+* [docs/examples](docs/examples/index.md): finished PiP mods as `.srpatch` files, with the edits explained
 * [docs/cli.md](docs/cli.md): command-line tools and building the EXE
 * [docs/scripts](docs/scripts/README.md): what the game's scripts do
 

@@ -1,6 +1,7 @@
 ---
 title: "PiP: June 26th Beta Discoveries"
-nav_order: 6
+parent: Game reference
+nav_order: 3
 ---
 
 # PiP: June 26th Beta Discoveries

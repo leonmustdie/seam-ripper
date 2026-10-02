@@ -1,6 +1,6 @@
 ---
 title: Scoring
-parent: Script reference
+parent: Naughty Bear
 grand_parent: Game reference
 nav_order: 3
 ---

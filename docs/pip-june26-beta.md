@@ -1,7 +1,8 @@
 ---
 title: "PiP: June 26th Beta Discoveries"
-parent: Game reference
-nav_order: 3
+parent: Panic in Paradise
+grand_parent: Game reference
+nav_order: 7
 ---
 
 # PiP: June 26th Beta Discoveries

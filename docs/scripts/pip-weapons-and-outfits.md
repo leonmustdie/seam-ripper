@@ -1,8 +1,8 @@
 ---
 title: "PiP: weapons and outfits"
-parent: Script reference
+parent: Panic in Paradise
 grand_parent: Game reference
-nav_order: 5
+nav_order: 1
 ---
 
 # PiP: weapons and outfits

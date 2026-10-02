@@ -41,9 +41,26 @@ Ship reads it back so it compares against the same baseline. Keep that line.
 
 ### Hashed names
 
-Names the game stores as hashes show like this:
+Both games store most names (sounds, animations, levels, text, items) as
+numbers, not words. A script that says `0x4342e44f` means `DetectThreat`. Seam
+Ripper writes the name beside the number so you can read it:
 `if message.mSoundName == --[[HASH:"DetectThreat"]]0x4342e44f then`.
 Hashes without a known name stay as plain hex.
+
+**How the number is made.** It is the CRC32 of the name in lowercase, so
+`DetectThreat` and `detectthreat` give the same number. We checked this on
+several names from both games: `level_names_Area01` is `0x70a75517`,
+`ep1_cha1_objectives_obj1` is `0x19896ed5`, `Pointy` is `0xc76f6737`. To work one out yourself:
+
+```python
+import zlib
+hex(zlib.crc32(b"detectthreat"))   # 0x4342e44f
+```
+
+NB1 scripts show the number in hex. In PiP's scripts the number is written in
+decimal after the `--[[HASH:"..."]]` comment, so `0x70a75517` and `1890014487`
+are the same value. The same ID is the key of a line in the game's
+text files ([NB1](scripts/game-text.md), [PiP](scripts/pip-text-and-menus.md)).
 
 To use a different hashed name, write `HASH("CSmoke02")`. Ship turns it into
 the hash before compiling and lists each one in the log. This works in both

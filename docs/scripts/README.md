@@ -1,32 +1,16 @@
 ---
 title: Script reference
-parent: Game reference
-nav_order: 1
-has_children: true
+nav_exclude: true
 permalink: /scripts/
 ---
 
 # Script reference
 
-What the games' Lua scripts actually do, one page per system. The rest of the
-docs cover the tool (how to read, edit and ship a script); these pages cover
-the game.
-
-### Naughty Bear
-
-| Page | System | Main scripts |
-|---|---|---|
-| [npc-fear.md](npc-fear.md) | How bears get scared, including seeing Naughty attack another bear | `global.lu` → `npc`, `globaldictionnary`; `naughtyisland.lu` → `naughtyisland_npcbase`, `naughtyisland_npcs` |
-| [hats.md](hats.md) | Naughty's hats: health and damage | `naughtybear.lu` → `naughtybearhatbonus` |
-| [bear-stats.md](bear-stats.md) | Each bear's health, fear, weapon and colour | `naughtyisland.lu` → `naughtyisland_npcs`; episode `*_npcs` |
-| [scoring.md](scoring.md) | Points and the combo multiplier | `global.lu` → `scoremanager`; `naughtyisland.lu` → `naughtyisland_npcbase`, `librarygameevents` |
-
-### Panic in Paradise
-
-| Page | System | Main scripts |
-|---|---|---|
-| [pip-weapons-and-outfits.md](pip-weapons-and-outfits.md) | Weapon and outfit stats, prices | `levelcommon.lu` → `weapons`, `accessoriesattribute` |
-| [pip-grades.md](pip-grades.md) | Scores for bronze to platinum | `global.lu` → `gamemodes` |
+What the games' Lua scripts actually do, one page per system, in two groups:
+[Naughty Bear](../game-nb1.md) and [Panic in Paradise](../game-pip.md). They
+are kept apart because the two games' scripts differ: NB1's are compiled
+bytecode that Seam Ripper decompiles, PiP's are plain source. The rest of the
+docs cover the tool; these pages cover the game.
 
 ## How to read these pages
 
@@ -46,5 +30,5 @@ the game.
 ## Adding a page
 
 Name the page after the system (`stealth-kills.md`, `scares.md`, ...), add it
-to the table above, and follow the same shape: where it lives, the exact code,
+to its game's page ([Naughty Bear](../game-nb1.md) or [Panic in Paradise](../game-pip.md)), and follow the same shape: where it lives, the exact code,
 what it does, what is confirmed, and how to change it.

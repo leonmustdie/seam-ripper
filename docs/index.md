@@ -25,6 +25,8 @@ app is in the [README](https://github.com/leonmustdie/seam-ripper#readme).
 
 * [Getting your game files](getting-game-files.md): from your NB1 disc image
   or PiP Arcade package to a folder you can mod.
+* [Your first mod](first-mod.md): change a hat's health, ship it, undo it.
+* [Playing modded games](playing-modded-games.md): running your change.
 
 **Examples**
 
@@ -39,14 +41,17 @@ app is in the [README](https://github.com/leonmustdie/seam-ripper#readme).
   applying patches.
 * [How Seam Ripper works](technical.md): Ship, the decompiler, hashed names,
   output formats.
+* [Textures, models and sounds](assets.md): pulling the art and sound out.
 * [Command-line tools](cli.md): every tool, and building the EXE.
 
 **Game reference** (the games)
 
-* [Script reference](scripts/README.md): what the game's scripts do and how to
-  change them. Easy places to start: [Naughty's hats](scripts/hats.md) (NB1)
-  and [weapons and outfits](scripts/pip-weapons-and-outfits.md) (PiP).
+* [Naughty Bear](game-nb1.md): the first game's scripts. Easy places to start:
+  [Naughty's hats](scripts/hats.md), [Episodes and challenges](scripts/episodes.md)
+  and [Game text](scripts/game-text.md).
+* [Panic in Paradise](game-pip.md): the second game's scripts. Easy places to
+  start: [Fluffetics](scripts/pip-fluffetics.md) and
+  [Unlockables and achievements](scripts/pip-unlockables.md). Includes the
+  [June 26th beta](pip-june26-beta.md) notes.
 * [File formats and PiP internals](game-files.md): containers, textures,
   meshes, PiP's script rules.
-* [PiP: June 26th Beta Discoveries](pip-june26-beta.md): getting the beta's debug
-  "zoo" levels to run, and why they hang.

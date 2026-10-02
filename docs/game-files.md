@@ -1,7 +1,7 @@
 ---
 title: File formats and PiP internals
 parent: Game reference
-nav_order: 2
+nav_order: 3
 ---
 
 # File formats and PiP internals

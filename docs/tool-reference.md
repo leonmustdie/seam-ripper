@@ -1,6 +1,6 @@
 ---
 title: Seam Ripper reference
-nav_order: 4
+nav_order: 6
 has_children: true
 permalink: /tool/
 ---
@@ -15,4 +15,5 @@ and scripts *contain* is in the [Game reference](game-reference.md).
 |---|---|
 | [Patches and backups](patches.md) | The `.srpatch` format, making and applying patches, how your files are protected |
 | [How Seam Ripper works](technical.md) | Ship, the decompiler, hashed names, output formats, troubleshooting |
+| [Textures, models and sounds](assets.md) | Pulling the art and sound out of the game files |
 | [Command-line tools](cli.md) | Every tool, and building the EXE |

@@ -44,7 +44,7 @@ A few things worth knowing:
 * Many scripts are in several `.lu` files and the game only uses one copy. Ship lists the other files that have the same script; leave them ticked or your edit might do nothing.
 * If Ship refuses a function, leave that one unedited. The rest of your changes still go through.
 
-Want to know what to edit? [docs/scripts](docs/scripts/README.md) explains what the game's scripts do. [Naughty's hats](docs/scripts/hats.md) (NB1) and [weapons and outfits](docs/scripts/pip-weapons-and-outfits.md) (PiP) are easy places to start.
+Want to know what to edit? [Naughty Bear](docs/game-nb1.md) and [Panic in Paradise](docs/game-pip.md) explain what each game's scripts do. [Your first mod](docs/first-mod.md) walks through one change. [Naughty's hats](docs/scripts/hats.md) (NB1) and [weapons and outfits](docs/scripts/pip-weapons-and-outfits.md) (PiP) are easy places to start.
 
 ### Patches
 
@@ -72,7 +72,7 @@ If you play NB1 through restuff, set its folder in **Settings → Play**. **Ship
 * [docs/game-files.md](docs/game-files.md): file formats and PiP internals
 * [docs/examples](docs/examples/index.md): finished PiP mods as `.srpatch` files, with the edits explained
 * [docs/cli.md](docs/cli.md): command-line tools and building the EXE
-* [docs/scripts](docs/scripts/README.md): what the game's scripts do
+* [docs/game-nb1.md](docs/game-nb1.md) and [docs/game-pip.md](docs/game-pip.md): what each game's scripts do, one page per system
 
 ## Legal
 

@@ -1,8 +1,8 @@
 ---
 title: "PiP: grades"
-parent: Script reference
+parent: Panic in Paradise
 grand_parent: Game reference
-nav_order: 6
+nav_order: 2
 ---
 
 # PiP: grade scores (bronze to platinum)

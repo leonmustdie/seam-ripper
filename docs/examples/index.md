@@ -7,14 +7,29 @@ permalink: /examples/
 
 # Examples
 
-Finished mods for *Naughty Bear: Panic in Paradise*, each a small `.srpatch`
-you can apply, and a page that shows exactly what it changes and why. They
-are here to show what Seam Ripper can do, and to be worked from: apply one,
-read the edit, change a number, make your own.
+Finished mods and previews, each with a page that shows exactly what it
+changes and why. They are here to show what Seam Ripper can do, and to be
+worked from: read the edit, change a number, make your own.
 
-A patch holds only the lines that were changed, never any of the game, so
-these files are safe to share. How patches work is on
-[Patches and backups](../patches.md).
+The two games are listed separately, because they are at different stages:
+*Panic in Paradise* has finished `.srpatch` files you can apply, and *Naughty
+Bear* has its first example, a preview.
+
+## Naughty Bear
+
+| Example | What it does | What it touches |
+|---|---|---|
+| [HUD score feed](hud-score-feed.md) (preview) | Score lines stack up to six at a time, newest on top, with the score on the same line, and fade out quickly, instead of replacing each other one at a time | The HUD's Flash movie in `levelcommon` |
+
+There is no patch file for this one yet. A patch holds only changed lines of
+script, and this edit is to a Flash movie. Support for that is planned for
+version 2.5; the page says what it took by hand.
+
+## Panic in Paradise
+
+Each of these is a small `.srpatch` you can apply. A patch holds only the
+lines that were changed, never any of the game, so these files are safe to
+share. How patches work is on [Patches and backups](../patches.md).
 
 | Example | What it does | Scripts touched |
 |---|---|---|

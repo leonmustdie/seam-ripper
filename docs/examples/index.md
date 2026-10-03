@@ -22,8 +22,9 @@ Bear* has its first example, a preview.
 | [HUD score feed](hud-score-feed.md) (preview) | Score lines stack up to six at a time, newest on top, with the score on the same line, and fade out quickly, instead of replacing each other one at a time | The HUD's Flash movie in `levelcommon` |
 
 There is no patch file for this one yet. A patch holds only changed lines of
-script, and this edit is to a Flash movie. Support for that is planned for
-version 2.5; the page says what it took by hand.
+script, and this edit is to a Flash movie. Instead the page has a prototype
+script that builds the modified file from your own copy and explains each step.
+Proper support for Flash edits is planned for version 2.5.
 
 ## Panic in Paradise
 

@@ -35,8 +35,8 @@ app is in the [README](https://github.com/leonmustdie/seam-ripper#readme).
   [Hero firearms](examples/hero-firearms.md) lets Naughty pick up and fire
   guns; [Rage glow](examples/rage-glow.md) makes ultra-kills power him up.
   For *Naughty Bear*, a preview:
-  [HUD score feed](examples/hud-score-feed.md) stacks the score lines (no
-  patch file yet; planned for 2.5).
+  [HUD score feed](examples/hud-score-feed.md) stacks the score lines (a
+  prototype script instead of a patch; planned for 2.5).
 
 **Seam Ripper reference** (the tool)
 

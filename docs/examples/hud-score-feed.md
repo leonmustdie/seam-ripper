@@ -9,9 +9,10 @@ nav_order: 1
 {: .note }
 This is a **preview**, and the first *Naughty Bear* example here. There is no
 `.srpatch` for it yet. A patch holds changed lines of script, and this edit is
-to a Flash movie, which patches cannot carry today. It was made with prototype
-scripts and a free Flash editor to prove the idea. Making it a normal part of
-the app, with a patch you can apply, is planned for version 2.5.
+to a Flash movie, which patches cannot carry today. Instead there is one
+prototype script that builds the modified file from your own copy of the game
+([Try it out!](#try-it)). Making it a normal part of the app, with a patch you can
+apply, is planned for the next version of Seam Ripper.
 
 Naughty Bear's score lines ("You smashed a window!", then "+500") use one line
 of screen. A new line replaces the old one, and the rest wait in a queue and
@@ -156,11 +157,53 @@ problem again.
 
 ## Change it
 
-* `ROWS`: how many lines can show. The movie has six slots, so six is the
-  most without adding more.
-* `HOLD` and `FADE`: how long a line stays and how long it takes to fade.
-* The size is the scale the feed clip is placed at (90%), set when the clip is
-  added to the movie.
+The script takes these as options (see [Try it](#try-it)):
+
+* `--hold` and `--fade`: how long a line stays and how long it takes to fade,
+  in milliseconds. These are `HOLD` and `FADE` in the feed script above.
+* `--scale`: the size of the lines, from 0.5 to 1.0 (default 0.9). It is the
+  scale the feed clip is placed at.
+* The number of lines is six. The movie has six slots, so six is the most
+  without adding more.
+
+## Try it
+
+{: .note }
+A prototype, not part of the Seam Ripper app and not supported (at least, not yet). It was tested
+in Xenia on the retail Naughty Bear files only.
+
+[Download hud_score_feed.py](hud_score_feed.py){: .btn .btn-primary }
+
+One script does everything and explains each step as it runs. It reads your
+`levelcommon.lu` and writes a **new** one into an output folder. It never
+changes your files, and nothing from the game is stored in the script.
+
+You need:
+
+* **Seam Ripper**, the tools folder (the script uses its container code and its
+  integrity check). Put the script inside the Seam Ripper folder, or point it
+  there with `--seamripper`. It stops and says so if it cannot find Seam
+  Ripper.
+* **Python 3.9 or newer.**
+* **JPEXS Free Flash Decompiler**, which compiles the feed's script. It is a
+  separate download.
+* **7-Zip**, whose compressor makes the edited movie small enough to fit.
+* An **untouched** `levelcommon.lu` from your Naughty Bear files. The script
+  checks it against the retail file and refuses anything else.
+
+```
+python hud_score_feed.py --lu "C:\NB1\lu\levelcommon.lu" --out hud_out
+```
+
+Add `--check-only` to test your setup without building anything. The script
+prints eight steps: the setup check, finding the movie, adding the feed clip,
+compiling its script, rewriting the live function, compressing to the exact
+size, writing the new file, and checking it (the integrity check passes, and
+only the HUD record differs from yours).
+
+To use the result, make a **copy** of your game folder, put the new
+`levelcommon.lu` in the copy's `lu` folder and run that copy. To undo, put the
+original file back.
 
 ## What Seam Ripper does not do yet
 

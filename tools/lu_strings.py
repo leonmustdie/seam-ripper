@@ -28,6 +28,7 @@ def read_string(image, rec_off):
 
 
 PIP_TABLE_TYPE = 0x04D00013
+TEXT_TYPE = 0x04D00002      # NB1 text record (one string per record)
 
 
 def pip_parse_table(c):
@@ -155,47 +156,63 @@ def cmd_apply(args):
     image = bytearray(lu.image)
     raw = bytearray(lu.raw)
 
-    # parse edited strings file: HASH<TAB>text per line
+    # parse edited strings file: HASH<TAB>text per line; +HASH<TAB>text adds
+    # a string the container does not have yet
     edits = {}
+    adds = {}
     for ln in Path(args.edited).read_text(encoding="utf-8").splitlines():
         if not ln.strip() or TAB not in ln:
             continue
         h, text = ln.split(TAB, 1)
         text = text.replace("\\n", "\n").replace("\\t", "\t").replace("\\\\", "\\")
-        edits[int(h, 16)] = text
+        if h.startswith("+"):
+            adds[int(h[1:], 16)] = text
+        else:
+            edits[int(h, 16)] = text
+    # a "+" line for a string the container already has is just an edit, so
+    # applying the same additions twice is harmless
+    have = {r.hash for r in lu.records}
+    for h in [h for h in adds if h in have]:
+        edits[h] = adds.pop(h)
 
     # locate record table in header
     fo = 0x20 + u32(raw, 0x38)
     table = 0x20 + u32(raw, fo)
     count = u32(raw, fo + 4)
 
-    # build records in image order so we can recompute shifts
-    recs = sorted(lu.records, key=lambda r: r.offset)
+    # Rebuild the image one distinct record offset at a time. Records are
+    # tracked by table index, never by hash: a container can hold several
+    # records with one hash (a descriptor and its partner), and keying on the
+    # hash made them overwrite each other's new position.
+    local = [r for r in lu.records if not r.external]
+    at = {}
+    for r in local:
+        at.setdefault(r.offset, []).append(r)
+    offsets = sorted(at)
     new_image = bytearray()
-    new_off = {}      # hash -> new offset
-    new_size = {}     # hash -> new size
+    new_pos = {}        # old offset -> new offset
+    new_len = {}        # table index -> size, for the records whose text changed
     changed = 0
 
-    for idx, r in enumerate(recs):
-        # original record byte span: from r.offset to next record's offset
-        start = r.offset
-        end = recs[idx + 1].offset if idx + 1 < len(recs) else len(image)
+    for k, start in enumerate(offsets):
+        # original record byte span: from this offset to the next one
+        end = offsets[k + 1] if k + 1 < len(offsets) else len(image)
         chunk = bytearray(image[start:end])
-        new_off[r.hash] = len(new_image)
+        new_pos[start] = len(new_image)
 
-        if r.hash in edits:
+        for r in at[start]:
+            if r.hash not in edits:
+                continue
             try:
                 old_text, old_strlen, old_textbytes = read_string(image, start)
             except Exception:
-                old_text = None
+                continue
             new_text = edits[r.hash]
-            if old_text is not None and new_text != old_text:
+            if new_text != old_text:
                 new_units = len(new_text) + 1  # + trailing NUL
                 new_bytes = new_text.encode("utf-16-be") + b"\x00\x00"
                 # rebuild chunk: [0:STRLEN] + new strlen + new text, then re-pad
-                head = chunk[:STRLEN_REL]
-                rebuilt = bytearray()
-                rebuilt += head
+                rebuilt = bytearray(chunk[:STRLEN_REL])
                 rebuilt += struct.pack(">I", new_units)
                 rebuilt += new_bytes
                 # records are 16-byte aligned; pad with 0xBF to the next 0x10
@@ -204,21 +221,49 @@ def cmd_apply(args):
                 while len(rebuilt) % 16 != 0:
                     rebuilt.append(0xBF)
                 chunk = rebuilt
+                new_len[r.index] = len(chunk)
                 changed += 1
+                break
 
-        new_size[r.hash] = len(chunk)   # full record span (matches table size semantics)
         new_image += chunk
         # keep the next record 16-byte aligned regardless of edits
         while len(new_image) % 16 != 0:
             new_image.append(0xBF)
 
-    # rewrite record table size(+0x0C)/offset(+0x10) for every record
-    for i in range(count):
-        e = table + i * 0x18
-        h = u32(raw, e)
-        if h in new_off:
-            struct.pack_into(">I", raw, e + 0x0C, new_size[h])
-            struct.pack_into(">I", raw, e + 0x10, new_off[h])
+    # rewrite record table offset(+0x10) for every record, and the size(+0x0C)
+    # of the ones whose text changed (the rest keep the size the game gave them)
+    for r in local:
+        e = table + r.index * 0x18
+        struct.pack_into(">I", raw, e + 0x10, new_pos[r.offset])
+        if r.index in new_len:
+            struct.pack_into(">I", raw, e + 0x0C, new_len[r.index])
+
+    # new strings: records appended after the last one, same layout the game
+    # uses for a text record, with new record-table entries
+    new_entries = bytearray()
+    if adds:
+        if lu.data_base != table + count * 0x18:
+            sys.exit("REFUSED: something sits between the record table and "
+                     "the data, so strings cannot be added to this file")
+        model = next((r for r in lu.records if r.type == TEXT_TYPE), None)
+        if model is None:
+            sys.exit("REFUSED: this file has no text records to model new "
+                     "strings on")
+        for h, text in adds.items():
+            units = text.encode("utf-16-be") + b"\x00\x00"
+            rec = (struct.pack(">4I", h, TEXT_TYPE, 0x10, 1)
+                   + struct.pack(">2I", 0x04D00003, 0x18)
+                   + struct.pack(">2I", 0x04D00003, 0x24)
+                   + struct.pack(">I", len(units) // 2) + units)
+            at = len(new_image)
+            new_image += rec
+            new_entries += struct.pack(">6I", h, TEXT_TYPE, 0xFFFFFFFF,
+                                       len(rec), at, model.flags)
+            while len(new_image) % 16 != 0:
+                new_image.append(0xBF)
+        struct.pack_into(">I", raw, fo + 4, count + len(adds))
+        struct.pack_into(">I", raw, 0x40,
+                         u32(raw, 0x40) + len(new_entries))
 
     # patch pool-info -> raw mode, append new image
     pi = 0x20 + u32(raw, 0x34)
@@ -229,25 +274,38 @@ def cmd_apply(args):
     struct.pack_into(">I", raw, pi + 0x10, 0xFFFFFFFF)
     struct.pack_into(">I", raw, pi + 0x14, 0)
 
-    header = bytes(raw[:lu.data_base])
+    header = bytes(raw[:lu.data_base]) + bytes(new_entries)
     out = header + bytes(new_image)
     op = Path(args.out) if args.out else Path(args.orig).with_suffix(".edited.lu")
     op.write_bytes(out)
-    print(f"applied {changed} edits, wrote {op} ({len(out)} bytes, raw/codec=0)")
+    added = f", added {len(adds)} new" if adds else ""
+    print(f"applied {changed} edits{added}, wrote {op} ({len(out)} bytes, raw/codec=0)")
 
     if args.verify:
         v = LuFile(str(op))
         vimg = v.image
         ok = True
+        want = dict(edits)
+        want.update(adds)
+        seen = set()
         for r in v.records:
-            if r.hash in edits:
+            if r.hash in want:
                 try:
                     t, _, _ = read_string(vimg, r.offset)
                 except Exception:
                     continue
-                if t != edits[r.hash]:
+                seen.add(r.hash)
+                if t != want[r.hash]:
                     print(f"  VERIFY FAIL {r.hash:08x}: got {t!r}", file=sys.stderr)
                     ok = False
+        for h in adds:
+            if h not in seen:
+                print(f"  VERIFY FAIL {h:08x}: added string not found", file=sys.stderr)
+                ok = False
+        if len(v.records) != count + len(adds):
+            print(f"  VERIFY FAIL: {len(v.records)} records, expected "
+                  f"{count + len(adds)}", file=sys.stderr)
+            ok = False
         print("VERIFY OK: all edits present and readable" if ok else "VERIFY had failures")
 
 

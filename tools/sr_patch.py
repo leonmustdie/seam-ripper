@@ -17,7 +17,11 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 FORMAT = "seamripper-patch"
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2           # the newest format this version reads
+# format 2 = a strings file may hold "+HASH<TAB>text" lines that add new
+# strings. Builds from before this was added skipped such lines without a
+# word, so a patch that has them is written as format 2 and those builds
+# refuse it. Patches without them stay format 1.
 SEAMRIPPER_VERSION = "2.0"   # keep in step with sr_gui.VERSION
 GAMES = {"nb1": "Naughty Bear", "pip": "Naughty Bear: Panic in Paradise"}
 CONTEXT = 3            # fingerprinted lines on each side of a change
@@ -194,17 +198,21 @@ def fresh_read(container, index, work):
     return out.read_text(encoding="utf-8").replace("\r\n", "\n")
 
 
-def _parse_strings(text):
-    """{hash: text} from a lu_strings extract file (escapes left as written)."""
+def _parse_strings(text, plus=None):
+    """{hash: text} from a lu_strings extract file (escapes left as written).
+    A `+HASH` line adds a string the file does not have; those go in `plus`
+    when given, otherwise they are read like any other line."""
     out = {}
     for ln in text.splitlines():
         if not ln.strip() or ln.startswith("#") or "\t" not in ln:
             continue
         h, t = ln.split("\t", 1)
+        added = h.startswith("+")
         try:
-            out[int(h, 16)] = t
+            n = int(h[1:] if added else h, 16)
         except ValueError:
             continue
+        (plus if added and plus is not None else out)[n] = t
     return out
 
 
@@ -215,13 +223,17 @@ def _changed_strings(orig, edited, work):
     _run(_tool("lu_strings.py", "extract", orig, "-o", base), lambda m: None,
          f"reading the strings of {orig.name}")
     old = _parse_strings(base.read_text(encoding="utf-8"))
-    new = _parse_strings(Path(edited).read_text(encoding="utf-8"))
+    plus = {}
+    new = _parse_strings(Path(edited).read_text(encoding="utf-8"), plus)
     unknown = [h for h in new if h not in old]
     if unknown:
         raise PatchError(f"{Path(edited).name} has {len(unknown)} string ID(s) "
                          f"that {orig.name} does not contain (first: "
-                         f"{unknown[0]:08x}); was it extracted from another file?")
-    return "".join(f"{h:08x}\t{t}\n" for h, t in new.items() if old[h] != t)
+                         f"{unknown[0]:08x}); was it extracted from another file? "
+                         f"(a new string is written +HASH, tab, text)")
+    return ("".join(f"{h:08x}\t{t}\n" for h, t in new.items() if old[h] != t)
+            + "".join(f"+{h:08x}\t{t}\n" for h, t in plus.items()
+                      if old.get(h) != t))
 
 
 def _build(orig, scripts, strings, work, log):
@@ -339,7 +351,7 @@ def make_patch(out_path, targets, name, author="", description="",
     would not apply or ship is never written. Returns the manifest."""
     if not targets:
         raise PatchError("nothing to put in the patch")
-    manifest = {"format": FORMAT, "format_version": FORMAT_VERSION,
+    manifest = {"format": FORMAT, "format_version": 1,
                 "game": None, "name": name, "author": author,
                 "description": description, "version": version,
                 "made_with": f"Seam Ripper {SEAMRIPPER_VERSION}", "targets": []}
@@ -358,6 +370,8 @@ def make_patch(out_path, targets, name, author="", description="",
             files.update(add)
     if not manifest["targets"]:
         raise PatchError("none of the given edits change anything")
+    if any(ln.startswith(b"+") for data in files.values() for ln in data.splitlines()):
+        manifest["format_version"] = 2
 
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)

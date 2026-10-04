@@ -21,8 +21,9 @@ thing left to the original pre-orders.
 
 ## Install
 
-You need the Seam Ripper version that can add new text (older ones refuse the
-patch) and your own Gold Edition files.
+You need the current Seam Ripper 2.0 download, which can add new text, and your
+own Gold Edition files. If you downloaded 2.0 earlier it refuses the patch with
+"needs a newer Seam Ripper", so download it again.
 
 1. Copy `naughtyfreddy.lu` and `naughtyslasher.lu` from the zip's `lu` folder
    into your game's `lu` folder.

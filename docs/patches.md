@@ -40,8 +40,14 @@ SeamRipper.exe --tool sr_patch.py make -o my-mod.srpatch --name "My mod" ^
 A `.srpatch` is a zip with a `manifest.json`. Each script edit is stored as
 the changed lines plus fingerprints of the lines around them, so it can still
 be placed if the recipient's copy has other edits. Text edits store only the
-changed strings. Patches are always made against the retail file, even after
-you've shipped into it. When applying, Seam Ripper rebuilds the file from the
+changed strings. A patch can also *add* strings the game's text file doesn't
+have: in the strings file, write `+HASH`, a tab and the text. A line without
+the `+` still only edits an existing string, so a mistyped ID can't add one
+by accident. Builds of Seam Ripper from before this was added can't add
+strings, so a patch that does is marked as needing a newer Seam Ripper and
+those builds refuse it, instead of applying without the text. If you get that
+message, download Seam Ripper again. Patches are always made against the retail file,
+even after you've shipped into it. When applying, Seam Ripper rebuilds the file from the
 recipient's own copy, verifies it, backs up the original and writes the
 result. Each patch records the Seam Ripper version that made it.
 

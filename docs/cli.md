@@ -26,7 +26,7 @@ With the release build, run them through the EXE:
 | `lua_repair.py` | Makes luadec output parse as Lua 5.1 again |
 | `naughty_lu.py` | Containers: `info`, `decompress`, `extract` |
 | `lu_convert.py` | Extracted chunks to DDS/PNG and OBJ/GLB |
-| `lu_strings.py` | `extract` and `apply` game text |
+| `lu_strings.py` | `extract` and `apply` game text. A `+HASH` line in the strings file adds a new string |
 | `lu_autofix.py` | Spelling and spacing `report` and `fix` |
 | `lu_grep.py` | Search game text across files |
 | `lu_sound.py` | `bank` and `streams` sound extraction |

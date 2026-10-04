@@ -1,7 +1,8 @@
 ---
 title: Pre-order costumes
-parent: Examples
-nav_order: 3
+parent: Naughty Bear examples
+grand_parent: Examples
+nav_order: 2
 ---
 
 # Pre-order costumes

@@ -1,6 +1,7 @@
 ---
 title: Rage glow
-parent: Examples
+parent: Panic in Paradise examples
+grand_parent: Examples
 nav_order: 2
 ---
 

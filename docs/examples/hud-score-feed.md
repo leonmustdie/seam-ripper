@@ -1,18 +1,18 @@
 ---
-title: HUD score feed (preview)
-parent: Examples
+title: HUD score feed
+parent: Naughty Bear examples
+grand_parent: Examples
 nav_order: 1
 ---
 
-# HUD score feed (preview)
+# HUD score feed
 
 {: .note }
-This is a **preview**, and the first *Naughty Bear* example here. There is no
-`.srpatch` for it yet. A patch holds changed lines of script, and this edit is
-to a Flash movie, which patches cannot carry today. Instead there is one
-prototype script that builds the modified file from your own copy of the game
-([Try it out!](#try-it)). Making it a normal part of the app, with a patch you can
-apply, is planned for the next version of Seam Ripper.
+This one comes as a script, not a `.srpatch`. A patch holds changed lines of
+script, and this edit is to a Flash movie, which patches cannot carry today.
+Instead there is one script that builds the modified file from your own copy
+of the game ([Try it out!](#try-it)). Making Flash edits a normal part of the
+app, with a patch you can apply, is planned for the next version of Seam Ripper.
 
 Naughty Bear's score lines ("You smashed a window!", then "+500") use one line
 of screen. A new line replaces the old one, and the rest wait in a queue and

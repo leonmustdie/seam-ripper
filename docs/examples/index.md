@@ -7,50 +7,20 @@ permalink: /examples/
 
 # Examples
 
-Finished mods and previews, each with a page that shows exactly what it
-changes and why. They are here to show what Seam Ripper can do, and to be
-worked from: read the edit, change a number, make your own.
+Finished mods, each with a page that shows exactly what it changes and why.
+They are here to show what Seam Ripper can do, and to be worked from: read the
+edit, change a number, make your own.
 
-The two games are listed separately, because they are at different stages:
-*Panic in Paradise* has finished `.srpatch` files you can apply, and *Naughty
-Bear* has a preview and a restoration of its pre-order costumes.
+Pick a game:
 
-## Naughty Bear
+* **[Naughty Bear](naughty-bear.md)**: the HUD score feed, and the restored
+  pre-order costumes.
+* **[Panic in Paradise](panic-in-paradise.md)**: Hero firearms and Rage glow,
+  each a small `.srpatch` you can apply.
 
-| Example | What it does | What it touches |
-|---|---|---|
-| [HUD score feed](hud-score-feed.md) (preview) | Score lines stack up to six at a time, newest on top, with the score on the same line, and fade out quickly, instead of replacing each other one at a time | The HUD's Flash movie in `levelcommon` |
-| [Pre-order costumes](preorder-costumes.md) | Restores Naughty Kruebear and Naughty Slasher, the original pre-order costumes, from the DLC packages | `init_unlockable` in `global`, plus text in `global` and `levelcommon` (zip with the costume files and a patch) |
+## How to read the pages
 
-There is no patch file for this one yet. A patch holds only changed lines of
-script, and this edit is to a Flash movie. Instead the page has a prototype
-script that builds the modified file from your own copy and explains each step.
-Proper support for Flash edits is planned for version 2.5.
-
-## Panic in Paradise
-
-Each of these is a small `.srpatch` you can apply. A patch holds only the
-lines that were changed, never any of the game, so these files are safe to
-share. How patches work is on [Patches and backups](../patches.md).
-
-| Example | What it does | Scripts touched |
-|---|---|---|
-| [Hero firearms](hero-firearms.md) | Naughty picks up guns and fires them, with a six-round clip, a reload pause and knife-style swings | `levelcommon` (2 scripts), `skinnaughty` (2 scripts) |
-| [Rage glow](rage-glow.md) | Every ultra-kill makes Naughty's fists glow and hit harder, with no unlock needed | `skinnaughty` (1 script) |
-
-## Apply one
-
-1. Get your Panic in Paradise files ([Getting your game files](../getting-game-files.md)).
-2. In Seam Ripper, open the patch on the **Patches** page. It checks that it
-   fits your files.
-3. Apply it to a copy first, then to the game. Seam Ripper backs up what it
-   replaces.
-
-The two patches change different scripts, so you can apply both.
-
-## What they are made from
-
-Both are edits to the game's own scripts, made on the retail files and read
+Most are edits to the game's own scripts, made on the retail files and read
 back with Seam Ripper. The scripts are plain Lua. Every excerpt on these pages
 is copied from the game, with only the changed lines marked.
 

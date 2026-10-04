@@ -31,12 +31,13 @@ app is in the [README](https://github.com/leonmustdie/seam-ripper#readme).
 **Examples**
 
 * [Examples](examples/index.md): mods with the exact edits explained, listed
-  by game. For *Panic in Paradise*, finished `.srpatch` files:
+  by game. For *Naughty Bear*:
+  [HUD score feed](examples/hud-score-feed.md) stacks the score lines (a
+  script instead of a patch; planned for 2.5), and
+  [Pre-order costumes](examples/preorder-costumes.md) restores the original
+  pre-order bonuses. For *Panic in Paradise*, finished `.srpatch` files:
   [Hero firearms](examples/hero-firearms.md) lets Naughty pick up and fire
   guns; [Rage glow](examples/rage-glow.md) makes ultra-kills power him up.
-  For *Naughty Bear*, a preview:
-  [HUD score feed](examples/hud-score-feed.md) stacks the score lines (a
-  prototype script instead of a patch; planned for 2.5).
 
 **Seam Ripper reference** (the tool)
 

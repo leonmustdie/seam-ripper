@@ -1,0 +1,596 @@
+# NB1 clip names: clip hash, catalogued name (exact, from the anim key), states that play it.
+# Built from the seeded-CRC name recovery (LU_FORMAT.md section 30). Used by anim_replace.py.
+002743d7	st_peeingout	st_peeingout
+004bd509	st_winopen	st_windowopen
+00c14eac		st_idle
+00fd4e85		st_open
+0139455d	st_fridgeopen	st_openfridge
+0146302a		st_idle_revolver
+035357ce		?8beeaac3
+03b9a9d8		?779f867d
+04bad3db		?6aab0f9a
+065db068		?96bb4697
+0798f5ce		?18143b70
+07bda0d1	st_payphonetalkloop	st_callpayphone
+08339a76		?3fe662dd
+08dbf6b1	st_uziidle	st_uziidle
+094d60cc		?225f9b50
+09ab36ac		?23d5184b
+09cd6ab7		st_walk;?5045b233
+0a607400		st_doorkick_holdingcake
+0a9339ca		st_repairarcademachineout
+0b34a210		?1cdd8d1c
+0ba47466		st_dropoff
+0cf9d927	st_ckwardrobe	?309a51fc
+0e44430c		?fc5f3e53
+0ed601fe		?c258652f
+0f4b8b2d		?002ba6fb
+10c514b2		?546e6fba
+10da538c		?cc5ea213
+112f43e9		?1ea2c4d7
+1138e6a8		?5d45b524
+11647c31	st_cswardrobe	?bb2eec13
+11a80f3e	st_truckgetin	st_truckgetin
+11dd0120		st_normalattackright;st_normalattackleft;st_normalattack
+124bede1		?93f9d666
+1299b06e		?bef3725d;?f1cfee14
+1306ed11	st_cswardrobezombiefmovehurtcheck01	?5d45b524
+13576f28		?19aa6c1a
+13bdfebd		?151ad328
+1426dd0c	st_dance_03	st_dance01;st_dance_03
+142faefa		st_sabotagepayphone
+1468fd49	st_cstruck	?d4821bcb
+14b7c19a		st_flyloop
+157cab3d	st_greeting_walk	st_greeting_walk
+15cf128c		?28da53ac
+16936029	st_shock01	st_shock01
+18450f1b		st_death
+186b0395		?e6d2b07f
+18926351		?4ed79593
+18c32cf7	st_landminetrap	st_landminetrap;?f694f3ab
+18f8aa6e		st_chargein
+196c073a		st_peeingin
+1a0e55f1	st_hurtadditive_fwd	st_hurtadditive_fwd
+1b0af466		st_doorkick
+1b2fdd63		st_normalattackright;st_normalattackleft;st_normalattack
+1b6c97c4	st_armyfmovehurt	st_armyfmovehurt;st_uzifmovehurt;?ef049801
+1c32636c		st_hurtnormalattackright;?e66d8a76
+1cf8fbc7	st_startled04	st_startled04
+1d07fd2d	st_hurtadditive_bwd	st_hurtadditive;st_hurtadditive_bwd
+1d20131b		st_walkworried
+1d630de3	st_dangerfmovehurt	?df652920
+1d879368	st_ckfumble	?c10362f7
+1dad241b		st_gamefail
+1e6296a7		?4c2bea07
+1f83d412	st_idleclap	st_idleclap
+20007707	st_checkaroundloop	st_idlescared
+21030faa		st_kickrt
+21bef291	st_boatpullback_in	st_boatpullbackin
+2205f271		?94a251e0
+234615d5		?aebf6d89
+242ac712	st_beartrap_help	st_beartraphelp
+2457b8f9		?394ea819;?583a81ce
+24fc70f0		st_walkworried
+253106b3		st_bbqcook
+25b304cf	st_piratefmovehurt	?6fbe7820
+25d00d83		st_walkpanic;?5045b233;st_walkscared;st_walkworried;st_walkterrified
+2600c157		?2002a1d3
+26043398		?50a3b3bf
+2659a567		?00ea2424
+2705f820		st_lookinwardrobe
+2805cbdc		st_attackin
+283ba737	st_shrug	st_shrug
+284c1e5b		st_attack_01
+2895e962		?e9a7ee8b
+28af7ab9		st_sink
+2a243cf9	st_powerhurtl	?41abd4d9;st_stabfmovehurt;?88d7a13e
+2ae6a9ba		st_sitinstandkick
+2b777549		?e9a7ee8b
+2ba0ff77		st_landminetrapset
+2d54d622	st_cktruck	?7fa8860c
+2dbb1e2b		?68d0eed0
+304e41cb		?394ea819
+3082bc57	st_peeingloop	st_peeing
+308c3603		?7b47cf7b
+30dd7749		?5f18ba1f
+31c9d966	st_accost	st_accost
+324fe609		?d7aa72d6
+3252f970	st_ckmixingmachine	?ddf8256a
+32d638fc		st_sitinstandkick
+334a8b4b	st_suicideaxe	st_suicidehatchet01;st_suicidecut
+33b1b852	st_gaze	st_gaze
+33babe37		?e6d2b07f
+34e7abc6		st_cakeidle
+353b1eff		st_walkpanic;st_walkscared;?aa4a8f50;st_walkworried;st_walkterrified
+3546e267		?e86f96c9
+358d90de	st_idlerevolvershoot	st_shoot
+35c36250	st_attackblockin	st_blockin
+35c9a613		?e6d2b07f
+36cca87f		?e897bdd8
+375a0210		st_landminetrapin
+37cffd56		?1cdd8d1c
+385cc0e9		?1574cd5d
+387355d9	st_beartrap_escape	st_beartrapescape
+387c927a		?5d66d7a5
+3930e214		st_sitinstandkickout
+39351399		?09d8a5b9
+397f8e81		?2d220ae4
+3a23d219		?ca5d7e1f
+3ae5d68e		st_trapin
+3b061b86		st_warscare
+3bbcd122	st_surprised03	st_surprised03
+3c5938d5		st_fumblearcademachineout
+3c9912ab		st_cktruck
+3cb751f9		?8c9e8080
+3ce9d929		st_greeting_walk
+3d904aeb	st_jeer_walk01	st_jeer_walk01
+3dbb975d		st_dooropenlt
+3de03366		?aa4a8f50
+3e420130		st_idle1;?6a459bfb;st_idlebored
+3e97a027		?e9a7ee8b
+3ee0625d		st_fumblepayphoneout;st_sitinstandkickout
+3ee43e89	st_checkgun	st_checkgun
+40c2f3b6		st_repairarcademachinein
+42165ed1		?f5053c05
+43111f5a	st_fumble	st_fumbletruck;st_fumble;st_fumblearcademachine;st_fumbleelectricbox;st_fumblepayphone
+436f22a5		?18143b70
+43787644		st_walkpanic;?5045b233;st_walkscared;st_walkworried;st_walkterrified
+438f7f16	st_attackblockout	st_blockout
+439a61a6		st_beartraptrappedin
+43aebef2		st_trapescape
+43d8028f	st_coolerrepairin	st_repaircoolerin
+4415d2b0		st_scared_att
+4450f3c1		?e9a7ee8b
+4460aec8	st_suicidebaseballbat	st_suicidebranch01;?193157f6;?37c73048;st_suicidecrush;?45f73b25;st_suiciderod01;st_suicidecrush02;?84474648;st_suicidechoke;st_suicidegolfclub01;st_suicidecricketbat01;st_suicidecrowbar01
+447af322	st_revolverreloadout	st_revolverreload
+44a9db51		?e9a7ee8b
+44c9647d	st_greeting_idle	st_greeting_idle
+44eeff0e		?5d45b524
+468fd2a9		st_walkpanic;st_walkscared;?aa4a8f50;st_walkworried;st_walkterrified
+46f02d65	st_idleinjured	st_idleinjured
+4709791f		?2610dd03
+47112b92		st_walkterrified
+482cee08		?e9a7ee8b
+4836c0db		st_unibear_disappearing
+4852c9ee		?18e0fb25
+490e1da9		?1cdd8d1c
+4919d0d0		st_unbaricade_right
+49b6f35d		st_trapholding
+49d31bde	st_walkinjured	st_walkinjured
+4ac4f6c2		?e9a7ee8b
+4c3136b5		?15bea543
+4c36531b		st_sabotagepayphone
+4c9860c5		?56fe6eda
+4cbbe1b4	st_surprised02	st_surprised02
+4d316add		?60196769
+4db341b9		?0c0c2a20
+4df10555	st_landminehelploop	st_landminehelp
+4dfabe64	st_jeer_walk04	st_jeer_walk04
+4e1de7ee		st_warscare
+4e2c39bf		st_trapset
+4e3109df		?f91ec6d0
+4e31910d		st_bbqcookout
+4e459f59		st_windowclose
+4fc5d20c	st_cscooler	?4cb3dae6
+50f0f424		?ac748c1a
+513f1ac2		st_callpayphoneout
+51ac11e9		st_repairtruck_out
+521a2eca		?5256903d
+524ffe03	st_lolipop_out	st_lolipop_out
+526f63dd		st_landminetrap
+538e64f4		st_repairarcademachineloop
+54c318a0		?c258652f
+5595ab33	st_coolerrepairout	st_repaircoolerout
+55f2d4ae	st_fall	st_tripfall
+570e7752		st_dooropenrt
+57880e49		?7a3fa66c
+57aa40bf		st_trapin
+57f65dfa		st_walkscared
+584633af		?e6d2b07f
+58494e09		st_idle1;?6a459bfb;st_idlebored
+58e5a86e	st_checkcake	st_checkcake
+58ee4654		st_greeting_walk
+59307120	st_ckwell	?81a02776
+59d735e2		st_walkpanic;st_walkscared;?aa4a8f50;st_walkworried;st_walkterrified
+5a0903b9		st_windowclose
+5a695b98		?546e6fba
+5ae6b936		?7523c49b;?e9a7ee8b
+5b96602c		st_walkscared;?aa4a8f50;st_walkworried;st_walkterrified
+5beb6e07		st_stealthkillmixingmachine
+5bfc4643		?e640098c;?e6d2b07f
+5d0e40e5		st_callpayphoneloop
+5d4e1671	st_attackblockhurt_additive	?e2b01fd9
+5e0519cd	st_boatfumble_in	st_boatfumble_in
+5f251885		?e9a7ee8b
+5f3bdac0	st_jeer_idle02	st_jeer_idle02
+5fcc1c57		st_close
+60096006		?e9a7ee8b
+60192164	st_boatpullback	st_boatpullback
+609988be		?b61d622a
+61745ebf	st_idle_combat	st_attackin
+61cabdea		?bbb2dec9
+61caeff5		st_broken
+61db2fbc		?50a3b3bf
+620d16e7		?1cdd8d1c
+624f5e13	st_dooropenrt	st_dooropenrt
+6275919a	st_hurtrecoilbwd	st_hurtrecoil_bwd
+6277dcbb	st_landminehelpin	st_landminehelp
+62d843e8		st_windowopen
+6321ed9a	st_dance_02	st_dance_02
+63d286fa		st_greeting_walk
+644c2983	st_dance_06	st_dance_06;st_dance02
+657c3946	st_hurtrecoilfwd	st_hurtrecoil_fwd
+65917c84		st_normalattack
+67f28da7		st_idle02
+68a1bc4e		st_walkpanic;?5045b233;st_walkscared;st_walkworried;st_walkterrified
+69155f63		st_baricade_right
+695bab79	st_checkfireloop	st_beachmax4;st_checkfireloop
+6a0d7aab	st_checkfireout	st_checkfireout;st_beachmax4
+6a8ae948	st_ckpayphone	?56e96193
+6aadf384		st_hurt;?02fe2e07;st_hurtnormalattack
+6b4d2536	st_payphonetalkin	st_callpayphone
+6bc76497		st_hideinwardrobeloop
+6bf9a6d8		st_idlecrouched
+6c920f48	st_startled01	st_startled01
+6da45b58		st_hurtfwd
+6e0f4729	st_changingkey	st_beachmax4;st_changingkey
+6e2a3e11		st_walkscared
+70f3a988	st_landminehelpescapein	st_landminehelpescape
+717d2cf0		?1cdd8d1c
+71f4ac6a	st_zombiefmovehurt	?5292b3f7
+721727e6		?6accd48d
+726ede94		?546e6fba
+728b4d5c		?e6d2b07f
+72926c84	st_washhandsin	st_washhands
+7313eaa4		?aa4a8f50
+7341a551		st_walkpanic;st_walkscared;?aa4a8f50;st_walkworried;st_walkterrified
+7400f058	st_landminehelpout	st_landminehelp
+75115c51		st_dodgeattack_01
+7557044d	st_dodge	st_dodgeback
+75944520	st_hurtr	st_hurtnormalattackright
+762280c8	st_bbqcookturn	st_bbqcook
+776bd7fc		st_idlecrouchedbored
+780ffaac		st_disableobjectout
+781c04c6	st_landmineescape	st_landmineescape
+78791c89		st_sinkidleout;st_bbqburgerout
+78e8cd67		st_stealthkillbeartrap
+79ed7ab3		?13a8d3e8
+7a68e6d1	st_landmineidle	st_landminetrap;?f694f3ab
+7aa7d85d		st_run;?e6d2b07f
+7ad648ab		?fa753a86
+7b4d0a90	st_cslandmine_out	?b0f038ac
+7b56fdaf		st_idle
+7bfad85a		st_normalattackleft
+7c416662		st_walkpanic;st_walkscared;?aa4a8f50;st_walkworried;st_walkterrified
+7c8a18ce		?e2cfeabc
+7ca5c254		st_idle1;?6a459bfb;st_idlebored
+7cd8665c	st_idle_revolver	st_idle_revolver
+7d15ee34		st_trapset
+7d3e9757	st_raygunshoot	st_raygunshoot
+7d620b00		st_greeting_walk
+7daf948c		?458c00c8
+7e900197		?5578a07d
+7ecd4879		st_walkterrified
+80a8e53e		?1cdd8d1c;st_run
+81032f88	st_truckstartloop	st_truckstartloop
+813f756b		st_idlebored
+81f5e539		st_normalattackright
+81f92824		st_flyout
+825c1558		?09805a3b
+829c6e64	st_startled03	st_startled03
+834f488d		st_dooropenlt
+83e247d0		?e9a7ee8b
+83e66e93		?214bf4ea
+84c2751a		st_walkterrified
+84cce010		?458c00c8
+85cda896		?d8449060
+864c380e		?6e89caa6
+864e5b01		st_walkpanic;?5045b233;st_walkscared;st_walkworried;st_walkterrified
+880b07bd	st_getup	st_tripfall
+8878b74e		st_pebblepitch
+8884703f		?1cdd8d1c
+889464c5	st_death	st_death
+88bf879e	st_boatfumble	st_boatfumble
+88cb7582		st_hurtadditivecake_fwd
+891cd7c7		?5045b233
+894e9832		st_walkpanic;?5045b233;st_walkscared;st_walkworried;st_walkterrified
+8a26209a	st_bbqcookidle	st_bbqcook
+8a4248af	st_dance_04	st_dance_04
+8a4c7270		?fd05f8f0
+8a4c77f2		st_bbqburger;st_sinkidle
+8acd5306		st_gamesuccess
+8ae1076e		?3e5a11f8;?7a2cf33a
+8ae5a1a5		st_repairelectricboxin
+8b0dc331	st_pebblepitch	st_pebblepitch
+8b3cac3c		?a6aea547
+8b685de8		st_strafeaimfwd
+8b721193		?e6d2b07f
+8bf779d2		?02fe2e07;?b76e6199
+8c1b35e2		st_ckill
+8c48c13a		st_repairphonebox;st_repairelectricbox
+8c61f534		st_strafeaimbwd
+8df24575		?3fe662dd
+8e09d6c3		st_idle1
+8e4cc7e4	st_boat_escape_in	st_boatescape
+8ee75f46		st_repairelectricboxout
+8f0182af	st_winlook	?1793c8c7
+8f9a3193	st_shock02	st_shock02
+8f9b7843	st_hurtl	st_hurtnormalattackleft
+8faac040		?23fe7dd7;?28e129f1
+8fc2dd5e		st_hurtadditivecake_bwd
+9145890b		st_stealthkillpayphone
+9146453e		st_chargeatt
+915b3bf0		?3fe662dd
+926a4b5a	st_ckfumble02	?ae09c381
+92ae812d		st_walkpanic;st_walkscared;?aa4a8f50;st_walkworried;st_walkterrified
+936cc1c9		st_respawning;st_zombie_apparition
+938b3334		?f87eab7d
+93ac0ab2		st_broken
+93dc2521		st_greeting_walk
+94250372		st_walkscared
+946bf7ec		st_flyin
+946f1191	st_arcademachineout	st_arcademachineout
+9521a929		?546e6fba
+959c56f7	st_ckcooler	?4918a768
+95a2b540	st_ckboat	?0110adf3
+963226e3	st_stumble	st_stumble
+9723e215	st_csbbq	?278f4d1d
+974cda49		st_idle1
+97b028de	st_coolerrepairloop	st_repaircoolerloop
+98022b84		?e6d2b07f
+9870096a		?c1ff9a9c
+99d21803	st_throwrock	st_throwrock
+99e1a93f		st_pullback
+99f5f752	st_landminehelpescapeloop	st_landminehelpescape
+9a065d65		?13a8d3e8
+9a278609	st_idlecrawl	st_idlefloor
+9b6216b2		?5d02951b
+9b9cfbf2		st_greeting_walk
+9e0d8df9		st_pickupground
+9e1cd786	st_wargetout	st_hideinwardrobeout
+9e539499		?bf4a09c6
+9ec9a245	st_boat_escape	st_boatescape
+9f4b015d	st_suicidemachete	st_suicidestab;st_suicidecutlass01;st_suicideslash;st_suicideninjato;st_suicideumbrella01
+9f6d2b9e		st_idle1;?6a459bfb;st_idlebored
+a03e3f2c		?779f867d
+a05f56b3		st_greeting_walk
+a0e98455		?13a8d3e8;?8f2cf9f8
+a10effa2	st_csinsane	?a278f748
+a12b640c	st_uzishoot	st_uzishoot
+a144cd09		st_repairtruck_in
+a1995d4f		?5045b233;st_walkscared;st_walkworried;st_walkterrified
+a1e920de		st_idle1;?6a459bfb;st_idlebored
+a1f37b20		?1c4f34ef;?1cdd8d1c
+a2490ecc		?1cdd8d1c
+a3d80881		st_walkpanic;?5045b233;st_walkscared;st_walkworried;st_walkterrified
+a3dcdf11	st_waridle	st_hideinwardrobeloop
+a486ce5a	st_ckfridge_melting	?590b9dfc
+a4991b51	st_jeer_walk02	st_jeer_walk02
+a4cc8a28		st_ckill
+a4f741cb		st_throwjelly
+a52a25e6		?13a8d3e8
+a5d84481	st_surprised04	st_surprised04
+a67f3801		st_idle1;?6a459bfb;st_idlebored
+a6cd372d		st_traphelp
+a7366800		?10eb45da
+a81513a9		?a859ad5e
+a8315907		st_baricade_left
+a8401a5f		?f420038c
+a8539885		?58fc7c31
+a874444f		?0a921e1a
+aa3a1ca3	st_csboat	?fab033dc
+ab003640		?68df1c4c
+ab173b3f	st_wargetin	st_hideinwardrobein
+ab48b3ed		st_trapholding
+ab76ce9e	st_cselectricbox	?77f77e2e
+ab8021d5		?64c6ba10
+ac0d3c4f		st_flushobject
+ac86392a		?0f0868fb
+acd93466		st_repairphoneboxout;st_repairelectricboxout
+ad4b14db		?4af2c762
+ad8b4f54	st_revolverreloadin	st_revolverreload
+ad989626	st_vampirefmovehurt	?8ce4fd48;?b2e61be7
+adbd836e	st_fridgeclose_panic	st_closefridge_panic
+ade8a588		st_attackin
+adf96099		st_walkscared
+afa910a0	st_arcademachineloop	st_arcademachineloop
+aff8f0a0	st_boatpullback_out	st_boatpullbackout
+b031d1aa		?91af4719
+b0cbcba1		?13a8d3e8
+b1454fe1		st_attack_02
+b16ec227	st_lolipop_loop	st_lolipop
+b1cb97c4		?8f9a52eb
+b20450e9		st_attackin
+b223d36b		?13a8d3e8
+b2c1abd8		?e49272f3
+b2c6b22a		?c9ec081c
+b2dfc038		st_destroyobject
+b30120ca		?e6d2b07f
+b37751bb		st_suicidegun02
+b4eafbe3		?3b305c7a
+b5a3343b	st_walkworriedweapon	
+b60e61cc	st_dooropenlt	st_dooropenlt
+b61f993e		st_revolvershoot_additive
+b63bda31		st_beartrapset
+b6975da6		?acf153b9
+b6983813		st_repairphoneboxin;st_repairelectricboxin
+b6fc26a1		?ddba794a
+b70e44ca		st_suicideraygun
+b71fee80		?21ccefcf
+b73e57be		st_pirateattcop3
+b836facd		?85ef7340
+b87d7c02	st_fridgeopen_panic	st_openfridge_panic
+b9774b27		st_walkpanic;st_walkscared;?aa4a8f50;st_walkworried;st_walkterrified
+ba2b4427		?1ea2c4d7
+ba8cdcb3	st_ckbbq	?2d8a4847
+bb3344ad	st_pebblepitchend	st_pebblepitchout
+bbc265c7	st_winclose	st_windowclose
+bbddbed7		st_lookinwardrobe
+bc57fca4		?77f64819;?8df9757a
+bc80efca		st_walkpanic;?5045b233;st_walkscared;st_walkworried;st_walkterrified
+bca7f0d6	st_success	st_gamesuccess
+bd1e16f1		st_walkterrified
+be26d8c1		st_fumbletruckout
+be4cefc1		?3d9b2e00
+be56e9ab	st_bbqidle	st_bbqburger;st_sinkidle
+be5fcea2		?13a8d3e8
+bea6e632		?13a8d3e8
+bf992865		?fecc1e7f
+c00886b3	st_beartrap_helpescape	st_beartrapescapehelp
+c00f27ed	st_scared	
+c10340c7	st_revolverreload	st_revolverreload
+c1b360eb		?f6437cad
+c20d2ba4		?b94d2085
+c253fd8a		?ef7bf03e
+c27638d5	st_washhandsout	st_washhandsout
+c2911a26	st_beartrapscared	
+c391345a		st_idle1
+c3ffef17		?78ae4d93
+c4989d44		?13a8d3e8
+c59eea3f		st_idle
+c5bd891f		st_idle
+c5c1a2f1		?de0be3cd
+c6328b7a	st_jeer_idle01	st_jeer_idle01
+c6427f77		st_attack_03
+c7bc7d56	st_ckfridge	st_winwardrobegetinset
+c7da837b		?905cd86e
+c7de1793	st_csfumble	?c4a81f79
+c7ef0e05		?5045b233
+c7f29c1d	st_lookaround	st_shrug;st_idleworried;st_lookoutside
+c8840ec9		st_pebblepitch
+c8fab55d	st_axefmovehurt	?c4b3d6fc
+c93db85d	st_idle	st_idle1
+c9479284		st_fumble;st_fumblepayphone
+c99869bf	st_suspicious	st_suspicious
+c9b58354		?1cdd8d1c
+ca14d20c	st_ninjafmovehurt	?1e2ad94c
+ca5d1194		st_idle
+ca83d777		?c9f5df9d
+cb3b5972		st_unbaricade_left
+cbc2153b	st_landminehelpescapeout	st_landminehelpescape
+ccf7adad	st_csbeartrap	?66bd3d8f
+cd4d1c5d		st_beartraptrapped
+cd5a5694	st_boatfumble_out	st_boatfumble_out
+cdc0c035		?e6d2b07f
+cee7c187		?6a459bfb
+cefa467e		st_greeting_walk
+cf34239c		st_walkpanic;?5045b233;st_walkscared;st_walkworried;st_walkterrified
+cf542fb5		?b81da535
+cf7d30f0		st_null
+cfc69b70		?1cdd8d1c
+cfea7f68	st_alienfmovehurt	?0402be7b;?4af16d7d;?df3a5f08
+d01a0015		?a77f8d7e
+d02b019a		?28a561c2;?b5d1c300;?e66d8a76
+d07a852d	st_fridgeopenidle_panic	st_fridgeidle_panic
+d0eca099		st_idle1
+d103da1d		st_suicidegun;st_suicideuzi;?8b388791
+d16a08bb	st_ckbeartrap	?ed098060
+d178482a		?13a8d3e8
+d228901a	st_robotfmovehurt	?70b2ed03
+d29ad401		?13a8d3e8
+d39e2bc7	st_jeer_walk03	st_jeer_walk03
+d3a9a237		?da145f93
+d43cc629		st_pebblepitch
+d5b2b00e	st_surprised01	st_surprised01
+d679c024		?29d01481
+d6cb680c		?c94d8b7b
+d6d31297		st_broken
+d7c582ba	st_fridgeclose	st_closefridge
+d86d434a		st_raygunshoot_additive
+d87f0bb1	st_arcademachinein	st_arcademachinein
+da1ffaf9		st_wardrobegetin
+da502cd9		st_scared_att02
+db0d2e3b		st_normalattackright;st_normalattackleft;st_normalattack
+db4d4166		?546e6fba
+db661070		st_disableobject
+db6e9abe		st_ckwardrobe
+dbcd31e5		?b3c9b8b5
+dbe7e453	st_idleorder	st_givingorder
+dc1b7059		?7b47cf7b;?a3cdc6ff
+dc1ecaba		?779f867d
+dca2e64d	st_attackblockloop	st_blockloop
+dd0e7756	st_aggressivesearch	st_aggressivesearch
+dd100f1e		st_trapescape
+dd9da95a		st_idle03
+de4e8c00	st_washhandsloop	st_washhands
+def34d93		st_walkworried
+df0f963a		?d5195084
+dfdf30e0		st_walkpanic;st_walkscared;?aa4a8f50;st_walkworried;st_walkterrified
+e004c8db		st_repairpayphonein
+e0bd5efd	st_runinjured	st_runinjured
+e2244fd8		st_trapset
+e23ae046		st_traphelp
+e2643ef6		?1cdd8d1c
+e271889a		st_respawning;st_unibear_apparition
+e28d97a0		?3cd68207
+e365b70a	st_hurtfwd	st_hurtfwd
+e377d90f		?83677cf1
+e393cf7c	st_attack	st_attack
+e3f48dbe		st_greeting_walk
+e4564c64		?7a8047fb
+e46c1fd6	st_hurtbwd	st_hurt;st_hurtnormalattack
+e4830a6f		st_uzishoot_additive
+e4e3e7db	st_cslandmine	?4ea977f9
+e54a9951	st_beartrapidle	st_beartraptrapped;?aa2095f5
+e5cbf777		st_fumble;st_fumbleelectricbox
+e62d41fe		st_fumbleelectricboxout;st_repairelectricboxout
+e63d5e0f		?41abd4d9;st_hurtnormalattackleft
+e700353c	st_payphonetalkout	st_callpayphoneout
+e72f2e78		st_walkworried
+e7b69e50		?538066a6
+e8968d0d		?073da0dc;?2f380771
+e8d434b0		?458c00c8
+e9957413		?0f0868fb
+e9a15824	st_truckgetout	st_truckgetout
+e9e1266d	st_silentpistolshoot	st_silentpistolshoot
+e9faa882		st_dooropenrt
+ea67c908		?50a3b3bf
+ea8ba8b5		?dbe8fb3b
+ea91906d	st_fridgeopenidle	st_fridgeidle
+eb34ed17		st_uzireload
+ec6ab8c2		st_wardrobegetout
+ec70c163		?394ea819
+ed3adf3c		st_idleterrified;?304b1971;st_waitscared
+ed5140d6		?0560c814
+ed7db441		st_idle2
+ed8c8929		st_idle1
+ee09d3b5		st_fumbletruck;st_fumble
+ee13b614	st_ckelectricbox	?482e4e58
+ef99b47f		?43b4d0b4
+f06fdee5	st_beartrap	st_beartraptrapped;?aa2095f5
+f13b9f73		?e6d2b07f
+f1b22aae		st_repairtruck
+f1e168a7		st_alien_apparition
+f2593bb4		st_idle1;?6a459bfb;st_idlebored
+f291a629		st_stealthkillfumble
+f322938c		?0f0868fb
+f34ac46a		?546e6fba
+f3580d57		st_hurtadditive
+f3c257d4		st_walk;?aa4a8f50
+f416c938	st_peeingin	st_peeingin
+f4492b8b	st_lolipop_in	st_lolipop
+f5423075		st_kicklt
+f56ab309	st_winclimb	?94a251e0
+f59b5ef2	st_startled02	st_startled02
+f6c2307e		st_stealthkilllandmine
+f72d3c5a		st_disableobject
+f74b01ec		?9361159e
+f841cdcb	st_fridgebaricade_left	st_fridgebaricade_left
+f89d0105	st_shock03	st_shock03
+f95c6aad		?71e197a0
+f97e42cd	st_cklandmine	st_stealthkilllandmine;?c51dca16
+f995eb63	st_affront	st_affront
+f9c029d6		st_attcleaver_handsin
+fa130662		st_greeting_walk
+fa225602		st_idle1;?6a459bfb;st_idlebored
+fa28bc20	st_dance_01	st_dance_01
+fad7502b		?5578a07d
+fae4495a		st_fumblearcademachine
+fb97a16c	st_fridgebaricade_right	st_fridgebaricade_right
+fc11d618		st_discardgun
+fce25496		st_idle1;?6a459bfb;st_idlebored
+fd375793	st_suicidenowpn	?8841a2d4;st_suicidenowpn
+fd457839	st_dance_05	st_dance_05
+fd9e490a		st_opengate
+fe1aeb75		st_strafeaim
+fe3cb51d		?abd31010

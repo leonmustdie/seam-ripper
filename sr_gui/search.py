@@ -4,6 +4,7 @@ import shlex
 from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, Signal
 
 from . import backend
+from .runner import alive, drop
 
 
 class SearchRun(QObject):
@@ -35,7 +36,7 @@ class SearchRun(QObject):
         env.insert("PYTHONIOENCODING", "utf-8")
         proc.setProcessEnvironment(env)
         proc.readyReadStandardOutput.connect(lambda: self._read(token, proc, state))
-        proc.readyReadStandardError.connect(lambda: state["err"].append(
+        proc.readyReadStandardError.connect(lambda: alive(proc) and state["err"].append(
             bytes(proc.readAllStandardError()).decode("utf-8", "replace")))
         proc.finished.connect(lambda code, _s: self._fin(token, proc, state, code))
         proc.errorOccurred.connect(lambda e: self._fin(token, proc, state, -1)
@@ -49,13 +50,12 @@ class SearchRun(QObject):
             return
         proc, self.proc = self.proc, None
         self.token += 1
-        proc.kill()
-        proc.deleteLater()
+        drop(proc)
         if not quiet:
             self.finished.emit({"ok": False, "cancelled": True, "hits": 0, "message": ""})
 
     def _read(self, token, proc, state):
-        if token != self.token:
+        if not alive(self, proc) or token != self.token:
             return
         state["buf"] += bytes(proc.readAllStandardOutput())
         lines = state["buf"].split(b"\n")
@@ -81,7 +81,7 @@ class SearchRun(QObject):
             self.hits.emit(batch)
 
     def _fin(self, token, proc, state, code):
-        if token != self.token or self.proc is not proc:
+        if not alive(self, proc) or token != self.token or self.proc is not proc:
             return
         try:
             state["buf"] += bytes(proc.readAllStandardOutput())
@@ -90,7 +90,7 @@ class SearchRun(QObject):
             return
         self._lines(state["buf"].split(b"\n"), state)
         self.proc = None
-        proc.deleteLater()
+        drop(proc)
         done = state["done"]
         err = "".join(state["err"]).strip()
         ok = code == 0 and done is not None

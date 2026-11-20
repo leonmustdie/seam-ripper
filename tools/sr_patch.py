@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Make, inspect and apply .srpatch mod patches, which hold only the lines a modder changed."""
+"""Make, inspect and apply .srpatch mod patches: the script lines and strings a
+modder changed, replacement animations as neutral clip files, replacement
+textures as the modder's own pictures and model edits as the moved vertices,
+each rebuilt into the recipient's own game files."""
 import argparse
 import difflib
 import hashlib
@@ -17,12 +20,34 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 FORMAT = "seamripper-patch"
-FORMAT_VERSION = 2           # the newest format this version reads
+FORMAT_VERSION = 5           # the newest format this version reads
 # format 2 = a strings file may hold "+HASH<TAB>text" lines that add new
 # strings. Builds from before this was added skipped such lines without a
 # word, so a patch that has them is written as format 2 and those builds
 # refuse it. Patches without them stay format 1.
-SEAMRIPPER_VERSION = "2.0"   # keep in step with sr_gui.VERSION
+# format 3 = "anim" edits: a replacement animation clip, stored as a neutral
+# clip file (lu_anim_encode JSON: per-bone channels, no container bytes) and
+# rebuilt into the recipient's own clip record. Written only when present.
+# Both games: an NB1 clip file must match the target's rig and bone count, a
+# PiP one carries its own bone-hash list (PiP binds tracks by bone name).
+# format 4 = an anim edit may name a "record": a bigger clip of the same PiP
+# container whose record takes the replacement, the two records trading names
+# (PiP hangs if a record changes size, so a long clip needs a long record).
+# Builds before this would have ignored the field and built a clip that does
+# not fit, so a patch that has one is written as format 4.
+# format 5 = "texture" and "mesh" edits. A texture edit is a replacement
+# picture (the modder's PNG or DDS, no game bytes) re-encoded on apply into
+# the recipient's own texture record, which keeps its size, format and mip
+# count. A mesh edit is a neutral vertex file (lu_mesh edits_to_obj: the ids
+# and new position / normal / uv of the moved vertices only) written into the
+# recipient's own mesh record, which keeps its size. Builds before this listed
+# such an edit as "? localization strings" and refused it only when applying,
+# so a patch that has one is written as format 5.
+# Also format 5 (unreleased when added) = "model" edits: a new model in a mesh
+# (mesh_import parts_to_obj: the modder's own vertices, triangles and weights
+# by skeleton bone, or "collapse" for a hidden part). Naughty Bear: the mesh
+# record grows; Panic in Paradise: it keeps its size or the build is refused.
+SEAMRIPPER_VERSION = "2.5"   # keep in step with sr_gui.VERSION
 GAMES = {"nb1": "Naughty Bear", "pip": "Naughty Bear: Panic in Paradise"}
 CONTEXT = 3            # fingerprinted lines on each side of a change
 MAX_CHANGED = 0.5      # more than this share of a script changed = wrong file
@@ -236,9 +261,74 @@ def _changed_strings(orig, edited, work):
                       if old.get(h) != t))
 
 
-def _build(orig, scripts, strings, work, log):
-    """Ship the script sources and then the strings into a copy of `orig`;
-    -> the rebuilt file (in `work`)."""
+def _hash(x):
+    return int(str(x), 16) if isinstance(x, str) else int(x)
+
+
+def _build(orig, scripts, strings, work, log, anims=(), textures=(), meshes=(),
+           models=(), cache=None):
+    """Ship the script sources, then the strings, then the animations, the
+    textures and the meshes into a copy of `orig`; -> the rebuilt file (in
+    `work`).
+    anims: [(clip name hash, neutral clip dict, original record sha256)].
+    textures: [(texture name hash, (picture name, bytes), original record
+    sha256 or None)].
+    meshes: [(mesh name hash, neutral mesh edit dict, original record sha256
+    or None)].
+    models: [(mesh name hash, neutral model import dict, original record
+    sha256 or None)].
+    cache: a folder shared by every container of one make or apply, so a
+    picture going into the same texture in several containers is encoded once."""
+    cur = _build_text(orig, scripts, strings, work, log)
+    if anims:
+        import lu_anim_encode as lae
+        try:
+            data, lines = lae.replace_in_container(cur, anims)
+        except lae.EncodeError as e:
+            raise PatchError(f"{Path(orig).name}: {e}")
+        for ln in lines:
+            log(ln)
+        out = Path(work) / f"anims_{Path(orig).name}"
+        out.write_bytes(data)
+        cur = out
+    if textures:
+        import lu_texture
+        try:
+            data, lines = lu_texture.replace_in_container(cur, textures, cache=cache)
+        except lu_texture.TextureError as e:
+            raise PatchError(f"{Path(orig).name}: {e}")
+        for ln in lines:
+            log(ln)
+        out = Path(work) / f"textures_{Path(orig).name}"
+        out.write_bytes(data)
+        cur = out
+    if meshes:
+        import lu_mesh
+        try:
+            data, lines = lu_mesh.replace_in_container(cur, meshes)
+        except lu_mesh.MeshError as e:
+            raise PatchError(f"{Path(orig).name}: {e}")
+        for ln in lines:
+            log(ln)
+        out = Path(work) / f"meshes_{Path(orig).name}"
+        out.write_bytes(data)
+        cur = out
+    if models:
+        import lu_mesh
+        import mesh_import
+        try:
+            data, lines = mesh_import.import_in_container(cur, models)
+        except lu_mesh.MeshError as e:
+            raise PatchError(f"{Path(orig).name}: {e}")
+        for ln in lines:
+            log(ln)
+        out = Path(work) / f"models_{Path(orig).name}"
+        out.write_bytes(data)
+        cur = out
+    return cur
+
+
+def _build_text(orig, scripts, strings, work, log):
     cur = Path(orig)
     if scripts:
         out = Path(work) / f"scripts_{cur.name}"
@@ -257,12 +347,37 @@ def _build(orig, scripts, strings, work, log):
     return cur
 
 
-def _parallel(fn, items):
-    """fn over items, a few at a time (each runs Seam Ripper's own tools as
-    subprocesses), results in order; the first error is raised."""
+def _parallel(fn, arg_lists):
+    """fn(*args) for each args, several at a time; results in order, the
+    first error raised. With the native LZX decoder the heavy work runs
+    outside the GIL, so threads (no start-up cost: a new model 2.4 s vs
+    2.3 s in processes, BlueNaughty 0.9 s vs 1.8 s). Without it the decoding is pure
+    Python, which threads would run one at a time, so up to 4 processes;
+    fn must then be a module-level function of this module (the worker
+    imports it by name). If worker processes cannot be started, threads."""
+    arg_lists = list(arg_lists)
     from concurrent.futures import ThreadPoolExecutor
-    with ThreadPoolExecutor(max_workers=min(4, os.cpu_count() or 1)) as ex:
-        return list(ex.map(fn, items))
+    import naughty_lu
+    native = naughty_lu._lzxdec is not None
+    n = min(8 if native else 4, os.cpu_count() or 1, len(arg_lists))
+    if n <= 1:
+        return [fn(*a) for a in arg_lists]
+    if native:
+        with ThreadPoolExecutor(max_workers=n) as ex:
+            futures = [ex.submit(fn, *a) for a in arg_lists]
+            return [f.result() for f in futures]
+    import multiprocessing
+    from concurrent.futures import ProcessPoolExecutor
+    from concurrent.futures.process import BrokenProcessPool
+    try:
+        with ProcessPoolExecutor(max_workers=n,
+                                 mp_context=multiprocessing.get_context("spawn")) as ex:
+            futures = [ex.submit(fn, *a) for a in arg_lists]
+            return [f.result() for f in futures]
+    except BrokenProcessPool:
+        pass
+    with ThreadPoolExecutor(max_workers=n) as ex:
+        return list(ex.map(lambda a: fn(*a), arg_lists))
 
 
 def retail_copy(container):
@@ -275,7 +390,7 @@ def retail_copy(container):
     return saved if saved.is_file() else p
 
 
-def _make_target(n, t, work):
+def _make_target(n, t, work, cache=None):
     """One container's part of a patch -> (game, entry, {zip path: bytes},
     log lines). An entry with no edits changed nothing."""
     lines = []
@@ -328,11 +443,140 @@ def _make_target(n, t, work):
             entry["edits"].append({"kind": "strings", "source": zp,
                                    "count": changed.count("\n")})
             log(f"  {changed.count(chr(10))} string(s) changed")
+    anims = []
+    for item in t.get("anims", ()):
+        import lu_anim_encode as lae
+        clip_hash, src = item[0], item[1]
+        slot = item[2] if len(item) > 2 else None
+        h = _hash(clip_hash)
+        if any(e.get("clip") == f"0x{h:08x}" for e in entry["edits"]):
+            raise PatchError(f"clip {h:08x} of {orig.name} is given twice")
+        recs = lae.clip_records(lu, h)
+        if len(recs) != 1:
+            raise PatchError(f"{orig.name} has {len(recs)} clips named {h:08x}")
+        old = bytes(lu.chunk(recs[0]))
+        try:
+            obj = json.loads(Path(src).read_text(encoding="utf-8"))
+            lae.build_clip(obj, old)            # refuses a wrong rig or bone count
+        except (OSError, ValueError, KeyError, lae.EncodeError) as ex:
+            raise PatchError(f"{Path(src).name}: {ex}")
+        sha = lae.sha256(old)
+        zp = f"anims/{n}_{h:08x}.json"
+        add[zp] = json.dumps(obj, separators=(",", ":")).encode("utf-8")
+        entry["edits"].append({"kind": "anim", "clip": f"0x{h:08x}",
+                               "rig": obj["rig"], "clip_sha": sha,
+                               "duration": obj["duration"], "source": zp})
+        if slot is not None:
+            sh = _hash(slot)
+            srecs = lae.clip_records(lu, sh)
+            if len(srecs) != 1:
+                raise PatchError(f"{orig.name} has {len(srecs)} clips named {sh:08x}")
+            ssha = lae.sha256(lu.chunk(srecs[0]))
+            entry["edits"][-1].update({"record": f"0x{sh:08x}", "record_sha": ssha})
+            anims.append((h, obj, sha, sh, ssha))
+            log(f"  clip {h:08x}: replaced ({obj['duration']:.2f} s, rig {obj['rig']}), "
+                f"in clip {sh:08x}'s record")
+        else:
+            anims.append((h, obj, sha))
+            log(f"  clip {h:08x}: replaced ({obj['duration']:.2f} s, rig {obj['rig']})")
+    textures = []
+    for tex_hash, src in t.get("textures", ()):
+        import lu_texture
+        h = _hash(tex_hash)
+        if any(e.get("texture") == f"0x{h:08x}" for e in entry["edits"]):
+            raise PatchError(f"texture {h:08x} of {orig.name} is given twice")
+        recs = lu_texture.texture_records(lu, h)
+        if len(recs) != 1:
+            raise PatchError(f"{orig.name} stores {len(recs)} textures named {h:08x}")
+        old = bytes(lu.chunk(recs[0]))
+        pic = Path(src).read_bytes()
+        if pic[:4] != b"DDS " and pic[:8] != b"\x89PNG\r\n\x1a\n":
+            import io
+            from PIL import Image
+            try:
+                b = io.BytesIO()
+                Image.open(io.BytesIO(pic)).save(b, "PNG")    # store other formats as PNG
+                pic = b.getvalue()
+            except (OSError, ValueError) as ex:
+                raise PatchError(f"{Path(src).name}: {ex}")
+        try:
+            new = lu_texture.encode_source(old, (Path(src).name, pic))
+        except (lu_texture.TextureError, OSError, ValueError) as ex:
+            raise PatchError(f"{Path(src).name}: {ex}")
+        if new == old:
+            log(f"  texture {h:08x}: no changes; left out")
+            continue
+        ti = lu_texture.info(old)
+        ext = ".dds" if pic[:4] == b"DDS " else ".png"
+        zp = f"textures/{lu_texture.sha256(pic)[:16]}{ext}"   # one copy per picture
+        add[zp] = pic
+        sha = lu_texture.sha256(old)
+        entry["edits"].append({"kind": "texture", "texture": f"0x{h:08x}",
+                               "texture_sha": sha, "width": ti["width"],
+                               "height": ti["height"], "format": ti["format"],
+                               "source": zp})
+        textures.append((h, (zp, pic), sha))
+        log(f"  texture {h:08x}: replaced ({ti['width']}x{ti['height']} {ti['format']})")
+    meshes = []
+    for mesh_hash, src in t.get("meshes", ()):
+        import lu_mesh
+        h = _hash(mesh_hash)
+        if any(e.get("mesh") == f"0x{h:08x}" for e in entry["edits"]):
+            raise PatchError(f"mesh {h:08x} of {orig.name} is given twice")
+        recs = lu_mesh.mesh_records(lu, h)
+        if len(recs) != 1:
+            raise PatchError(f"{orig.name} stores {len(recs)} meshes named {h:08x}")
+        old = bytes(lu.chunk(recs[0]))
+        try:
+            obj = json.loads(Path(src).read_text(encoding="utf-8"))
+            if lu_mesh.apply_edits(old, lu_mesh.obj_to_edits(old, obj)) == old:
+                log(f"  mesh {h:08x}: no changes; left out")
+                continue
+        except (OSError, ValueError, KeyError, lu_mesh.MeshError) as ex:
+            raise PatchError(f"{Path(src).name}: {ex}")
+        sha = lu_mesh.sha256(old)
+        zp = f"meshes/{n}_{h:08x}.json"
+        add[zp] = json.dumps(obj, separators=(",", ":")).encode("utf-8")
+        nv = sum(len(p["ids"]) for p in obj["parts"].values())
+        entry["edits"].append({"kind": "mesh", "mesh": f"0x{h:08x}", "mesh_sha": sha,
+                               "vertices": nv, "parts": len(obj["parts"]),
+                               "source": zp})
+        meshes.append((h, obj, sha))
+        log(f"  mesh {h:08x}: {nv:,} vertices moved in {len(obj['parts'])} part(s)")
+    models = []
+    for mesh_hash, src in t.get("models", ()):
+        import lu_mesh
+        import mesh_import
+        h = _hash(mesh_hash)
+        if any(e.get("mesh") == f"0x{h:08x}" for e in entry["edits"]):
+            raise PatchError(f"mesh {h:08x} of {orig.name} is given twice (a model "
+                             f"edit and a new model cannot be combined)")
+        recs = lu_mesh.mesh_records(lu, h)
+        if len(recs) != 1:
+            raise PatchError(f"{orig.name} stores {len(recs)} meshes named {h:08x}")
+        old = bytes(lu.chunk(recs[0]))
+        try:
+            obj = json.loads(Path(src).read_text(encoding="utf-8"))
+            parts = mesh_import.obj_to_parts(obj)
+            opts = obj.get("options") or {}
+            mesh_import.build_record(old, parts, game, opts.get("primitive", "auto"),
+                                     True if opts.get("in_place") else None)
+        except (OSError, ValueError, KeyError, lu_mesh.MeshError) as ex:
+            raise PatchError(f"{Path(src).name}: {ex}")
+        sha = lu_mesh.sha256(old)
+        zp = f"models/{n}_{h:08x}.json"
+        add[zp] = json.dumps(obj, separators=(",", ":")).encode("utf-8")
+        nv = sum(len(p["position"]) for p in parts.values() if not isinstance(p, str))
+        entry["edits"].append({"kind": "model", "mesh": f"0x{h:08x}", "mesh_sha": sha,
+                               "vertices": nv, "parts": len(parts), "source": zp})
+        models.append((h, obj, sha))
+        log(f"  mesh {h:08x}: new model, {nv:,} vertices in {len(parts)} part(s)")
     if not entry["edits"]:
         log("  nothing changed; file left out")
         return game, entry, add, lines
     log("  test-applying it the way a recipient will")
-    final = _build(orig, rebuilt, strings, work, log)
+    final = _build(orig, rebuilt, strings, work, log, anims, textures, meshes, models,
+                   cache)
     entry["result_size"] = final.stat().st_size
     entry["result_sha256"] = sha256_file(final)
     return game, entry, add, lines
@@ -345,8 +589,14 @@ def make_patch(out_path, targets, name, author="", description="",
 
     targets: [{"container": path of the original .lu,
                "scripts": [(record index, edited .lua path), ...],
-               "strings": edited lu_strings extract file or None}, ...]
-    Each script is stored as its changed lines only. The patch is applied to
+               "strings": edited lu_strings extract file or None,
+               "anims": [(clip name hash, neutral clip .json[, record clip
+                          hash]), ...],
+               "textures": [(texture name hash, picture path), ...],
+               "meshes": [(mesh name hash, neutral mesh edit .json), ...],
+               "models": [(mesh name hash, neutral model import .json), ...]}, ...]
+    Each script is stored as its changed lines only; an animation as its
+    neutral clip file (motion only, rebuilt into the recipient's own clip). The patch is applied to
     the originals here, the same way a recipient applies it, so a patch that
     would not apply or ship is never written. Returns the manifest."""
     if not targets:
@@ -357,7 +607,9 @@ def make_patch(out_path, targets, name, author="", description="",
                 "made_with": f"Seam Ripper {SEAMRIPPER_VERSION}", "targets": []}
     files = {}
     with tempfile.TemporaryDirectory(prefix="srpatch_") as work:
-        done = _parallel(lambda nt: _make_target(nt[0], nt[1], work), enumerate(targets))
+        cache = Path(work) / "texcache"
+        done = _parallel(_make_target, [(n, t, work, cache)
+                                        for n, t in enumerate(targets)])
     for game, entry, add, lines in done:
         for ln in lines:
             log(ln)
@@ -370,8 +622,16 @@ def make_patch(out_path, targets, name, author="", description="",
             files.update(add)
     if not manifest["targets"]:
         raise PatchError("none of the given edits change anything")
-    if any(ln.startswith(b"+") for data in files.values() for ln in data.splitlines()):
+    if any(ln.startswith(b"+") for zp, data in files.items()
+           if zp.startswith("strings/") for ln in data.splitlines()):
         manifest["format_version"] = 2
+    if any(e["kind"] == "anim" for t in manifest["targets"] for e in t["edits"]):
+        manifest["format_version"] = 3
+    if any("record" in e for t in manifest["targets"] for e in t["edits"]):
+        manifest["format_version"] = 4
+    if any(e["kind"] in ("texture", "mesh", "model") for t in manifest["targets"]
+           for e in t["edits"]):
+        manifest["format_version"] = 5
 
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -448,6 +708,36 @@ def check_targets(manifest, folder):
 def _script_match(path, t):
     lu, _, scripts = _game_and_scripts(path)
     for e in t["edits"]:
+        if e["kind"] == "anim":
+            import lu_anim_encode as lae
+            recs = lae.clip_records(lu, int(e["clip"], 16))
+            if len(recs) != 1:
+                return "mismatch", f"clip {e['clip']} is not in this file"
+            if lae.sha256(lu.chunk(recs[0])) != e["clip_sha"]:
+                return "mismatch", f"clip {e['clip']} is a different version"
+            if "record" in e:
+                recs = lae.clip_records(lu, int(e["record"], 16))
+                if len(recs) != 1:
+                    return "mismatch", f"clip {e['record']} is not in this file"
+                if lae.sha256(lu.chunk(recs[0])) != e["record_sha"]:
+                    return "mismatch", f"clip {e['record']} is a different version"
+            continue
+        if e["kind"] == "texture":
+            import lu_texture
+            recs = lu_texture.texture_records(lu, int(e["texture"], 16))
+            if len(recs) != 1:
+                return "mismatch", f"texture {e['texture']} is not in this file"
+            if lu_texture.sha256(lu.chunk(recs[0])) != e["texture_sha"]:
+                return "mismatch", f"texture {e['texture']} is a different version"
+            continue
+        if e["kind"] in ("mesh", "model"):
+            import lu_mesh
+            recs = lu_mesh.mesh_records(lu, int(e["mesh"], 16))
+            if len(recs) != 1:
+                return "mismatch", f"mesh {e['mesh']} is not in this file"
+            if lu_mesh.sha256(lu.chunk(recs[0])) != e["mesh_sha"]:
+                return "mismatch", f"mesh {e['mesh']} is a different version"
+            continue
         if e["kind"] != "script":
             continue
         s = _find_script(scripts, e)
@@ -455,7 +745,8 @@ def _script_match(path, t):
             return "mismatch", f"script {e['name']} is not in this file"
         if _script_digest(lu, s) != e["script_sha"]:
             return "mismatch", f"script {e['name']} is a different version"
-    return "compatible", "the file differs, but the edited scripts are the originals"
+    return "compatible", ("the file differs, but the edited scripts, clips, "
+                          "textures and meshes are the originals")
 
 
 def _find_script(scripts, e):
@@ -468,15 +759,16 @@ def _find_script(scripts, e):
 
 
 # ------------------------------------------------------------------- apply
-def _apply_target(n, t, c, strings_data, game, work):
+def _apply_target(n, t, c, payloads, game, work):
     """Build one patched file in `work` -> (log lines, path)."""
     lines = []
     log = lines.append
     log(f"{t['file']}: {c['status']}" + (f" ({c['detail']})" if c["detail"] else ""))
+    cache = Path(work) / "texcache"
     work = Path(work) / f"t{n}"
     work.mkdir()
     _, _, scripts = _game_and_scripts(c["path"])
-    rebuilt, strings = [], None
+    rebuilt, strings, anims, textures, meshes, models = [], None, [], [], [], []
     for e in t["edits"]:
         if e["kind"] == "script":
             s = _find_script(scripts, e)
@@ -495,11 +787,48 @@ def _apply_target(n, t, c, strings_data, game, work):
             rebuilt.append((s.index, p))
         elif e["kind"] == "strings":
             strings = work / "strings.txt"
-            strings.write_bytes(strings_data)
+            strings.write_bytes(payloads[e["source"]])
+        elif e["kind"] == "anim":
+            try:
+                obj = json.loads(payloads[e["source"]].decode("utf-8"))
+            except ValueError as ex:
+                raise PatchError(f"{e['source']} in the patch is damaged ({ex})")
+            # a forced apply onto a different clip still needs the same rig
+            # and bone count; build_clip refuses anything else
+            forced = c["status"] == "mismatch"
+            a = (int(e["clip"], 16), obj, None if forced else e["clip_sha"])
+            if "record" in e:
+                a += (int(e["record"], 16), None if forced else e["record_sha"])
+            anims.append(a)
+        elif e["kind"] == "texture":
+            # a forced apply onto a different texture still needs the same
+            # size and format; the encoder refuses anything else
+            forced = c["status"] == "mismatch"
+            textures.append((int(e["texture"], 16), (e["source"], payloads[e["source"]]),
+                             None if forced else e["texture_sha"]))
+        elif e["kind"] == "mesh":
+            try:
+                obj = json.loads(payloads[e["source"]].decode("utf-8"))
+            except ValueError as ex:
+                raise PatchError(f"{e['source']} in the patch is damaged ({ex})")
+            # a forced apply onto a different mesh still needs the same parts
+            # and vertex counts; obj_to_edits refuses anything else
+            forced = c["status"] == "mismatch"
+            meshes.append((int(e["mesh"], 16), obj, None if forced else e["mesh_sha"]))
+        elif e["kind"] == "model":
+            try:
+                obj = json.loads(payloads[e["source"]].decode("utf-8"))
+            except ValueError as ex:
+                raise PatchError(f"{e['source']} in the patch is damaged ({ex})")
+            # a forced apply onto a different mesh still needs the parts and
+            # palettes the model names; build_record refuses anything else
+            forced = c["status"] == "mismatch"
+            models.append((int(e["mesh"], 16), obj, None if forced else e["mesh_sha"]))
         else:
             raise PatchError(f"unknown edit kind '{e['kind']}'; this patch "
                              f"needs a newer Seam Ripper")
-    final = _build(c["path"], rebuilt, strings, work, log)
+    final = _build(c["path"], rebuilt, strings, work, log, anims, textures, meshes,
+                   models, cache)
     if game == "nb1":
         import verify_lzx
         try:
@@ -546,17 +875,17 @@ def apply_patch(patch, folder, out_dir=None, force=False, log=print):
     todo = [(n, t, c) for n, (t, c) in enumerate(zip(m["targets"], checks))
             if c["status"] != "applied"]
     with zipfile.ZipFile(patch) as z:
-        strings = {}
+        payloads = {}
         for n, t, _ in todo:
             for e in t["edits"]:
-                if e["kind"] == "strings":
+                if e["kind"] in ("strings", "anim", "texture", "mesh", "model"):
                     zp = PurePosixPath(e["source"])
                     if zp.is_absolute() or ".." in zp.parts:
                         raise PatchError(f"unsafe path in patch: {e['source']}")
-                    strings[n] = z.read(e["source"])
+                    payloads.setdefault(n, {})[e["source"]] = z.read(e["source"])
     with tempfile.TemporaryDirectory(prefix="srpatch_") as work:
-        built = _parallel(lambda item: _apply_target(*item, strings.get(item[0]),
-                                                     m["game"], work), todo)
+        built = _parallel(_apply_target, [(n, t, c, payloads.get(n, {}), m["game"], work)
+                                          for n, t, c in todo])
         for lines, _ in built:
             for ln in lines:
                 log(ln)
@@ -609,6 +938,20 @@ def info_text(m, patch):
         for e in t["edits"]:
             if e["kind"] == "script":
                 lines.append(f"  script {e['name']}: {len(e['hunks'])} change(s)")
+            elif e["kind"] == "anim":
+                lines.append(f"  animation clip {e['clip']} replaced "
+                             f"({e['duration']:.2f} s, rig {e['rig']})"
+                             + (f", stored in clip {e['record']}'s record"
+                                if "record" in e else ""))
+            elif e["kind"] == "texture":
+                lines.append(f"  texture {e['texture']} replaced ({e['width']}x"
+                             f"{e['height']} {e['format']})")
+            elif e["kind"] == "mesh":
+                lines.append(f"  mesh {e['mesh']} edited ({e['vertices']:,} vertices "
+                             f"moved in {e['parts']} part(s))")
+            elif e["kind"] == "model":
+                lines.append(f"  mesh {e['mesh']}: new model ({e['vertices']:,} vertices "
+                             f"in {e['parts']} part(s))")
             else:
                 lines.append(f"  {e.get('count', '?')} localization string(s)")
     return "\n".join(lines)
@@ -632,6 +975,27 @@ def main():
                     metavar=("ORIGINAL.lu", "EDITED.txt"),
                     help="edited localization strings (a `lu_strings.py "
                          "extract` file); only changed lines are kept")
+    pm.add_argument("--anim", nargs=3, action="append", default=[],
+                    metavar=("ORIGINAL.lu", "CLIPHASH", "CLIP.json"),
+                    help="a replacement animation: the original container, "
+                         "the hex name hash of the clip it replaces, and a "
+                         "neutral clip file (lu_anim_encode.py)")
+    pm.add_argument("--texture", nargs=3, action="append", default=[],
+                    metavar=("ORIGINAL.lu", "TEXHASH", "PICTURE"),
+                    help="a replacement texture: the original container, the "
+                         "hex name hash of the texture, and the new picture "
+                         "(PNG or DDS, the texture's width and height)")
+    pm.add_argument("--mesh", nargs=3, action="append", default=[],
+                    metavar=("ORIGINAL.lu", "MESHHASH", "EDIT.json"),
+                    help="a model edit: the original container, the hex name "
+                         "hash of the mesh, and a neutral mesh edit file "
+                         "(lu_mesh.py; mesh_replace.py writes patches directly)")
+    pm.add_argument("--model", nargs=3, action="append", default=[],
+                    metavar=("ORIGINAL.lu", "MESHHASH", "IMPORT.json"),
+                    help="a new model: the original container, the hex name hash "
+                         "of the mesh, and a neutral model import file "
+                         "(mesh_import.py; mesh_replace.py import writes patches "
+                         "directly)")
 
     pi = sub.add_parser("info", help="show what a patch contains")
     pi.add_argument("patch")
@@ -667,6 +1031,22 @@ def main():
                 if t["strings"]:
                     sys.exit(f"--strings given twice for {orig}")
                 t["strings"] = src
+            for orig, clip, src in a.anim:
+                t = targets.setdefault(str(Path(orig).resolve()).lower(), {
+                    "container": orig, "scripts": [], "strings": None})
+                t.setdefault("anims", []).append((clip, src))
+            for orig, tex, src in a.texture:
+                t = targets.setdefault(str(Path(orig).resolve()).lower(), {
+                    "container": orig, "scripts": [], "strings": None})
+                t.setdefault("textures", []).append((tex, src))
+            for orig, mesh, src in a.mesh:
+                t = targets.setdefault(str(Path(orig).resolve()).lower(), {
+                    "container": orig, "scripts": [], "strings": None})
+                t.setdefault("meshes", []).append((mesh, src))
+            for orig, mesh, src in a.model:
+                t = targets.setdefault(str(Path(orig).resolve()).lower(), {
+                    "container": orig, "scripts": [], "strings": None})
+                t.setdefault("models", []).append((mesh, src))
             make_patch(a.out, list(targets.values()), a.name, a.author,
                        a.description, a.version)
         elif a.cmd == "info":
@@ -693,4 +1073,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # run as the module sr_patch, not __main__: the worker processes of
+    # _parallel import its functions (and PatchError) by that name
+    import sr_patch
+    sr_patch.main()

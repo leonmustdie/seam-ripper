@@ -793,45 +793,16 @@ def prepare_edit(chunk, source, luac, prefer="auto", luadec=False, jar=UNLUAC,
 def replace_records(lu, new_chunks):
     """The container with several records' bytes replaced, rebuilt once.
 
-    Same layout as lu_chunk_replace.py (whose output this reproduces
-    byte-for-byte for a single record): each later record at the first
+    lu_chunk_replace.rebuild does it: each later record at the first
     multiple of its own alignment after the previous one, 0xBF fill, and a
-    compressed image re-compressed into the same number of segments.
+    compressed image kept in the same number of segments, only the segments
+    whose bytes changed compressed again.
     """
-    from lzx_encode import xmem_lzx_compress
-    from lu_chunk_replace import relayout, write_record_table
-
-    def u32(b, o):
-        return struct.unpack_from(">I", b, o)[0]
-    raw = bytearray(lu.raw)
-    image, offsets = relayout(lu, new_chunks)
-    write_record_table(raw, offsets, {i: len(b) for i, b in new_chunks.items()})
-
-    pi = 0x20 + u32(raw, 0x34)
-    if not lu.compressed:
-        struct.pack_into(">6I", raw, pi, 0, len(image), 0, 1, 0xFFFFFFFF, 0)
-        return bytes(raw[:lu.data_base]) + bytes(image)
-
-    window = lu.lzx_window or 0x100000
-    wbits = window.bit_length() - 1
-    segments = []
-    for pos in range(0, len(image), window):
-        seg = bytes(image[pos:pos + window])
-        comp = xmem_lzx_compress(seg, wbits)
-        segments.append(seg if len(comp) >= len(seg) else comp)
-    if len(segments) != lu.segment_count:
-        raise ShipError(
-            f"this edit changes the container from {lu.segment_count} to "
-            f"{len(segments)} compressed segments (the data crossed a "
-            f"{window:#x}-byte boundary), which is not supported yet; trim "
-            f"the edit so the script grows less", kind="slot")
-    sizes_rel = u32(raw, pi + 0x10)
-    so = 0x20 + sizes_rel
-    for i, seg in enumerate(segments):
-        struct.pack_into(">I", raw, so + 4 * i, len(seg))
-    struct.pack_into(">6I", raw, pi, 2, len(image), window, len(segments),
-                     sizes_rel, len(segments))
-    return bytes(raw[:lu.data_base]) + b"".join(segments)
+    from lu_chunk_replace import rebuild
+    try:
+        return rebuild(lu, new_chunks)[0]
+    except ValueError as e:
+        raise ShipError(str(e), kind="slot")
 
 
 def cmd_ship(a):

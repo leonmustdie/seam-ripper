@@ -445,10 +445,10 @@ class Main(QMainWindow):
     def reload_current_script(self, key):
         self.view.scripts.discard_current(key)
 
-    def open_tool(self, title):
+    def open_tool(self, title, values=None):
         self.select_rail(TOOLS)
         self.tools_sb.select(title)
-        self.tools_page.show_tool(title)
+        self.tools_page.show_tool(title, values)
 
     def show_changes(self, key=None):
         self.select_rail(CHANGES)

@@ -16,7 +16,7 @@ what the output files are. For what is *inside* the game files, see
 |---|---|---|
 | PySide6 | the GUI | the command-line tools only need the standard library |
 | Pillow | PNG textures, textures inside GLB | without it you still get DDS |
-| numpy | rigged character GLB export (`lu_rig.py`) | only that tool needs it |
+| numpy | rigged character GLB export (`lu_rig.py`) and animation extraction (`anim_extract.py`) | only those tools need it |
 | Java 8+ | the `unluac.jar` fallback decompiler | only if you pick unluac by hand |
 
 The release EXE bundles Python, PySide6 and Pillow.

@@ -228,5 +228,27 @@ class RetailPatch(unittest.TestCase):
         self.assertEqual(r["files"][0]["status"], "identical")
 
 
+
+class Parallel(unittest.TestCase):
+    """Containers are built several at a time (threads with the native LZX
+    decoder, processes without): results in order, and an error in a worker
+    reaches the caller as itself."""
+
+    def test_results_in_order(self):
+        got = P._parallel(P._hash, [("ff",), ("10",), (7,), ("a",)])
+        self.assertEqual(got, [255, 16, 7, 10])
+
+    def test_worker_error_is_raised(self):
+        with self.assertRaises(ValueError):
+            P._parallel(P._hash, [("10",), ("not hex",)])
+
+    def test_processes_without_the_native_decoder(self):
+        from unittest import mock
+        import naughty_lu
+        with mock.patch.object(naughty_lu, "_lzxdec", None):
+            self.assertEqual(P._parallel(P._hash, [("ff",), ("10",)]), [255, 16])
+            with self.assertRaises(ValueError):
+                P._parallel(P._hash, [("10",), ("not hex",)])
+
 if __name__ == "__main__":
     unittest.main()

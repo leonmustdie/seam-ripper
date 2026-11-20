@@ -94,7 +94,9 @@ def is_texture_chunk(data):
 
 def convert_texture(data, out_base):
     """Convert one texture chunk. Returns list of written paths."""
-    h, w = struct.unpack_from(">2I", data, 8)
+    # +0x08 is the WIDTH, +0x0c the height (LU_FORMAT.md section 32.1: the
+    # other reading exports every non-square texture half black)
+    w, h = struct.unpack_from(">2I", data, 8)
     mips = struct.unpack_from(">I", data, 0x24)[0]
     fmt = struct.unpack_from(">I", data, 0x28)[0]
     doff, dsz = struct.unpack_from(">2I", data, 0x38)

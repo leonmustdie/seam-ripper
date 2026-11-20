@@ -88,19 +88,67 @@ def bone_label(i, bones):
 
 # -------------------------------------------------------------------- mesh
 
+PALETTE_MAGIC = 0x001A23A6
+
+
+def find_palettes(d):
+    """The shipped skin palette. One descriptor follows each submesh's
+    index buffer:
+
+        +0x00  u32  magic 0x001A23A6
+        +0x04  u32  version 0x00010100
+        +0x08  u32  0x00FF0000
+        +0x0C  u32  0xFFFFFFFF
+        +0x10  u32  0
+        +0x14  u32  offset -> bone-index array (u32 x count)
+        +0x18  u32  count
+        +0x1C  u32  offset -> third array  (count x 4B, float)
+        +0x20  u32  offset -> second array (count x 4B, float)
+        +0x24  u32  count again
+
+    The bone-index array IS the skin-index -> skeleton-bone map: entry i
+    is the skeleton bone that vertex skin index i refers to. Strictly
+    increasing. Rigid submeshes get a count-1 palette (their single bone).
+
+    Returns [{'off', 'count', 'bones'}] sorted by descriptor offset."""
+    out = []
+    magic = struct.pack(">I", PALETTE_MAGIC)
+    i = d.find(magic)
+    while i >= 0:
+        if i + 0x28 <= len(d):
+            ver, aoff, cnt = struct.unpack_from(">I", d, i + 4)[0], \
+                struct.unpack_from(">I", d, i + 0x14)[0], \
+                struct.unpack_from(">I", d, i + 0x18)[0]
+            if (ver == 0x00010100 and 0 < cnt < 1024
+                    and aoff + 4 * cnt <= len(d)):
+                out.append({"off": i, "count": cnt,
+                            "bones": list(struct.unpack_from(
+                                f">{cnt}I", d, aoff))})
+        i = d.find(magic, i + 4)
+    return out
+
+
 def extract_skinned_mesh(d):
     """Returns list of submeshes: (positions, uvs, raw_skin_indices u8x4,
-    weights f4, triangles, is_rigid, texture_refs). Raw indices are in the
-    mesh's local palette space; use solve_palette() to map them to
-    skeleton bones. texture_refs is the list of CRC32 hashes found in the
-    descriptor window between this buffer and the previous one (same
-    scan lu_convert.convert_mesh uses for material binding)."""
+    weights f4, triangles, is_rigid, texture_refs, palette). Raw indices
+    are in the mesh's local palette space; `palette` (from find_palettes)
+    maps them to skeleton bones, and is None only if this mesh predates
+    or omits the descriptor, in which case solve_palette() guesses.
+    texture_refs is the list of CRC32 hashes found in the descriptor
+    window between this buffer and the previous one (same scan
+    lu_convert.convert_mesh uses for material binding)."""
     quads = _find_buffer_quads(d)
+    pals = find_palettes(d)
     out = []
     prev_field = 0x20
-    for field_off, vo, vs, io_, isz in quads:
+    for qi, (field_off, vo, vs, io_, isz) in enumerate(quads):
         refs = _find_texture_refs(d, prev_field, field_off)
         prev_field = io_ + isz
+        # This submesh's palette descriptor sits between the end of its
+        # index buffer and the start of the next submesh's vertex data.
+        lo = io_ + isz
+        hi = quads[qi + 1][1] if qi + 1 < len(quads) else len(d)
+        pal = next((p["bones"] for p in pals if lo <= p["off"] < hi), None)
         tr = _read_trailer(d, io_, isz)
         if tr is None:
             continue
@@ -137,22 +185,29 @@ def extract_skinned_mesh(d):
                 weights.append([c / t for c in w])
         tris = _decode_list(raw, n) if prim == 4 else _decode_strips(raw, n)
         if tris:
-            out.append((verts, uvs, joints, weights, tris, wn == 0, refs))
+            out.append((verts, uvs, joints, weights, tris, wn == 0, refs, pal))
     return out
 
 
 def solve_palette(submeshes, bones):
-    """The shipped files contain no skin palette, so recover the
-    skin-index -> skeleton-bone mapping geometrically. Evidence: weighted
-    vertex centroids per skin index. The mapping is a monotone increasing
-    subset of skeleton indices (verified on the retail bears), so a
-    DP sequence alignment of centroids against bone bind positions
-    recovers it. Rigid accessory submeshes use their own index space and
-    are handled separately (nearest bone)."""
+    """Fallback only. The real skin palette ships in the mesh chunk (see
+    find_palettes); build_glb uses each submesh's own palette and only
+    falls back here when a mesh carries no descriptor. This guesses the
+    skin-index -> skeleton-bone mapping geometrically from weighted
+    vertex centroids per skin index, aligned against bone bind positions
+    by monotone DP. It is approximate and tears the mesh at shoulders.
+
+    Returns the widest shipped palette when one exists, so callers that
+    still pass a single global mapping get the exact answer."""
     import numpy as np
+    # a submesh is (verts, uvs, joints, weights, tris, rigid, refs[, palette]);
+    # the palette is absent from 7-tuples (older callers, hand-built meshes)
+    shipped = [s[7] for s in submeshes if len(s) > 7 and not s[5] and s[7]]
+    if shipped:
+        return max(shipped, key=len)
     bonepos = np.array([b["world"][3][:3] for b in bones])
     acc = {}
-    for verts, _, joints, weights, _, rigid, _ in submeshes:
+    for verts, _, joints, weights, _, rigid, *_ in submeshes:
         if rigid:
             continue
         for v, j4, w4 in zip(verts, joints, weights):
@@ -438,13 +493,16 @@ def build_glb(bones, submeshes, mapping, out_path, texture_index=None,
         return len(accessors) - 1
 
     n_textured = 0
-    for sm_idx, (verts, uvs, joints, weights, tris, rigid, refs) in enumerate(submeshes):
+    for sm_idx, (verts, uvs, joints, weights, tris, rigid, refs,
+                 *rest) in enumerate(submeshes):
+        pal = rest[0] if rest else None      # 7-tuples carry no shipped palette
         n = len(verts)
+        m = pal if pal else mapping          # shipped palette wins
         if rigid:
-            nb = nearest_bone(verts, bones)
+            nb = m[0] if pal else nearest_bone(verts, bones)
             joints = [[nb, 0, 0, 0]] * n
         else:
-            joints = [[mapping[j] if j < len(mapping) else 0 for j in j4]
+            joints = [[m[j] if j < len(m) else 0 for j in j4]
                       for j4 in joints]
         vmin = [min(v[k] for v in verts) for k in range(3)]
         vmax = [max(v[k] for v in verts) for k in range(3)]

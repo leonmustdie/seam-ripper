@@ -80,6 +80,9 @@ def main():
                          "records share one hash")
     ap.add_argument("--name")
     ap.add_argument("-o", "--out", required=True)
+    ap.add_argument("--compress", action="store_true",
+                    help="LZX-compress rewritten segments (slow, smaller file) "
+                         "instead of storing them raw")
     a = ap.parse_args()
 
     lu = LuFile(a.lu)
@@ -124,8 +127,27 @@ def main():
     if target is None:
         sys.exit("chunk not found")
 
-    new_image, offsets = relayout(lu, {target.index: new})
-    write_record_table(raw, offsets, {target.index: len(new)})
+    try:
+        out, how = rebuild(lu, {target.index: new}, compress=a.compress)
+    except ValueError as e:
+        sys.exit(f"REFUSED: {e}")
+    Path(a.out).write_bytes(out)
+    print(f"wrote {a.out} ({len(out):,} bytes, {how})")
+
+
+def rebuild(lu, replacements, compress=False):
+    """Whole container bytes with records replaced -> (bytes, description).
+    replacements: {record index: new chunk bytes}. Later records move to
+    keep their alignment (relayout). In a compressed container, segments
+    the edit did not change keep their original bytes and the others are
+    stored raw (stored size == slice size, a form retail and the game's
+    reader already use); compress=True LZX-compresses them instead, which
+    is several seconds per segment in Python but keeps the file small.
+    Raises ValueError if the image would need another segment (not
+    supported)."""
+    raw = bytearray(lu.raw)
+    new_image, offsets = relayout(lu, replacements)
+    write_record_table(raw, offsets, {i: len(b) for i, b in replacements.items()})
 
     pi = 0x20 + u32(raw, 0x34)
 
@@ -137,36 +159,52 @@ def main():
         struct.pack_into(">I", raw, pi + 0x10, 0xFFFFFFFF)
         struct.pack_into(">I", raw, pi + 0x14, 0)
         out = bytes(raw[:lu.data_base]) + bytes(new_image)
-        Path(a.out).write_bytes(out)
-        print(f"wrote {a.out} ({len(out):,} bytes, raw/uncompressed)")
-        return
+        return out, "raw/uncompressed"
 
-    # --- compressed source: re-compress, keep the codec=2 container shape --
+    # --- compressed source: keep the codec=2 container shape ---------------
     window = lu.lzx_window or 0x100000
     wbits = window.bit_length() - 1
     old_segcount = lu.segment_count
-
-    segments = []
-    pos = 0
     n = len(new_image)
+    if (n + window - 1) // window != old_segcount:
+        raise ValueError(
+            f"this edit changes the image from {old_segcount} to "
+            f"{(n + window - 1) // window} pool segments (crossed a {window:#x}-byte "
+            f"window boundary). Relocating the segment-sizes table and "
+            f"record table for a different segment count isn't "
+            f"supported yet; trim the edit so the total image size "
+            f"stays within the same number of {window:#x}-byte windows.")
+
+    # Each segment is its own LZX stream (both decoders start every segment
+    # fresh), so a segment whose bytes did not change keeps the original's
+    # compressed bytes. Only segments the edit touched, or that moved because
+    # a record before them changed size, are written again: raw by default,
+    # since compressing them in Python dominated apply time (a new model: 97 s -> 15 s).
+    old_image = lu.image
+    old_blobs, at = [], lu.data_base
+    for size in lu.segment_sizes:
+        old_blobs.append(bytes(lu.raw[at:at + size]))
+        at += size
+    segments = []
+    kept = stored = 0
+    pos = 0
     while pos < n:
         seg = bytes(new_image[pos:pos + window])
-        comp = xmem_lzx_compress(seg, wbits)
-        # if compression didn't help (rare for tiny/high-entropy segments),
-        # store it raw the same way retail does for incompressible segments
+        i = pos // window
+        if i < len(old_blobs) and seg == old_image[pos:pos + window]:
+            segments.append(old_blobs[i])
+            kept += 1
+            pos += window
+            continue
+        comp = xmem_lzx_compress(seg, wbits) if compress else seg
+        # store it raw when not compressing, or when compression didn't help,
+        # the same way retail does for incompressible segments
         # (naughty_lu.py's reader already treats csize==usize as "stored").
         if len(comp) >= len(seg):
             comp = seg
+            stored += 1
         segments.append(comp)
         pos += window
-
-    if len(segments) != old_segcount:
-        sys.exit(f"REFUSED: this edit changes the image from {old_segcount} to "
-                 f"{len(segments)} pool segments (crossed a {window:#x}-byte "
-                 f"window boundary). Relocating the segment-sizes table and "
-                 f"record table for a different segment count isn't "
-                 f"supported yet — trim the edit so the total image size "
-                 f"stays within the same number of {window:#x}-byte windows.")
 
     sizes_rel = u32(raw, pi + 0x10)
     so = 0x20 + sizes_rel
@@ -181,11 +219,9 @@ def main():
     struct.pack_into(">I", raw, pi + 0x14, len(segments))
 
     out = bytes(raw[:lu.data_base]) + b"".join(segments)
-    Path(a.out).write_bytes(out)
     ratio = sum(len(s) for s in segments) / len(new_image) * 100
-    print(f"wrote {a.out} ({len(out):,} bytes, {len(segments)} LZX segment(s), "
-          f"{ratio:.0f}% of uncompressed size)")
-
+    return out, (f"{len(segments)} LZX segment(s), {kept} kept as they were, "
+                 f"{stored} stored uncompressed, {ratio:.0f}% of uncompressed size")
 
 if __name__ == "__main__":
     main()

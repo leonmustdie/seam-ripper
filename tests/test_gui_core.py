@@ -191,10 +191,9 @@ class BackendTests(unittest.TestCase):
     S = {"python": "python", "luac": "l", "jar": "j", "decompiler": "luadec"}
 
     def test_unwired_features_say_so(self):
-        for fn, args in ((backend.texture_replace, (None, "a", "b", "c")),):
-            with self.assertRaises(backend.NotAvailable) as cm:
-                fn(*args)
-            self.assertIn("not available yet", str(cm.exception))
+        # texture import is wired now (tex_replace.py); the message stays
+        self.assertFalse(hasattr(backend, "texture_replace"))
+        self.assertIn("not available yet", str(backend.NotAvailable("Something")))
 
     def test_ship_writes_in_place_or_to_the_ship_to_folder(self):
         s = dict(self.S, projects={})

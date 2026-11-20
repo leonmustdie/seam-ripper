@@ -10,9 +10,10 @@ Modding tools for the Xbox 360 Naughty Bear games: **Naughty Bear** and
 **Naughty Bear: Panic in Paradise**.
 
 Seam Ripper opens the games' `.lu` files so you can read and edit the gameplay
-scripts, change the text, pull out textures, models and sounds, and put it all
-back. Mods can be shared as small patch files that don't contain any of the
-game.
+scripts, change the text, pull out textures, models, animations and sounds,
+and put scripts, text, animations, textures and models back. Mods can be
+shared as small patch files that hold only what you changed, never the
+game's files.
 
 [Download Seam Ripper](https://github.com/leonmustdie/seam-ripper/releases){: .btn .btn-primary }
 
@@ -33,11 +34,13 @@ app is in the [README](https://github.com/leonmustdie/seam-ripper#readme).
 * [Examples](examples/index.md): mods with the exact edits explained, listed
   by game. For *Naughty Bear*:
   [HUD score feed](examples/hud-score-feed.md) stacks the score lines (a
-  script instead of a patch; planned for 2.5), and
+  script instead of a patch until UI editing arrives), and
   [Pre-order costumes](examples/preorder-costumes.md) restores the original
   pre-order bonuses. For *Panic in Paradise*, finished `.srpatch` files:
   [Hero firearms](examples/hero-firearms.md) lets Naughty pick up and fire
   guns; [Rage glow](examples/rage-glow.md) makes ultra-kills power him up.
+  For both games, [Blue big-head Naughty](examples/blue-big-head-naughty.md)
+  shows a texture replacement and a model edit in one patch.
 
 **Seam Ripper reference** (the tool)
 
@@ -45,7 +48,8 @@ app is in the [README](https://github.com/leonmustdie/seam-ripper#readme).
   applying patches.
 * [How Seam Ripper works](technical.md): Ship, the decompiler, hashed names,
   output formats.
-* [Textures, models and sounds](assets.md): pulling the art and sound out.
+* [Textures, models and sounds](assets.md): pulling the art and sound out,
+  and putting textures, models and animations back.
 * [Command-line tools](cli.md): every tool, and building the EXE.
 
 **Game reference** (the games)

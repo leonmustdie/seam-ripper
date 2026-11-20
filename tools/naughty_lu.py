@@ -2,9 +2,11 @@
 """Extractor for Naughty Bear (Xbox 360) .lu resource containers."""
 
 import argparse
+import hashlib
 import re
 import struct
 import sys
+import threading
 import zlib
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -426,7 +428,56 @@ def parse_xmem_frames(data, image_size):
     return frames, pos
 
 
+_DECODED = {}            # (blake2b of a segment, size, window) -> decoded bytes
+_DECODED_BYTES = [0]
+_DECODED_MAX = 256 << 20
+_DECODED_LOCK = threading.Lock()
+
+
 def xmem_lzx_decompress(data, image_size, window_size):
+    """One XMemCompress segment -> its bytes. Segments decode independently,
+    so a decode is remembered by the segment's own bytes: a rebuilt container
+    that keeps most of its segments (lu_chunk_replace.rebuild) reads them back,
+    and verifies them, without decoding them again. Only segments that decoded
+    without error are remembered; at most 256 MB, oldest dropped first."""
+    key = (hashlib.blake2b(data, digest_size=20).digest(), image_size, window_size)
+    with _DECODED_LOCK:
+        got = _DECODED.pop(key, None)
+        if got is not None:
+            _DECODED[key] = got          # most recently used last
+            return got
+    got = _xmem_lzx_decompress(data, image_size, window_size)
+    with _DECODED_LOCK:
+        if key not in _DECODED:
+            _DECODED[key] = got
+            _DECODED_BYTES[0] += len(got)
+        while _DECODED_BYTES[0] > _DECODED_MAX and len(_DECODED) > 1:
+            old = _DECODED.pop(next(iter(_DECODED)))
+            _DECODED_BYTES[0] -= len(old)
+    return got
+
+
+# The same decoder built in C (lzxnative_src/lzxdec.c, ~50x faster). Used
+# when it imports; SR_LZX_PYTHON=1 forces the Python one (tests compare them).
+try:
+    import os as _os
+    if _os.environ.get("SR_LZX_PYTHON"):
+        raise ImportError("Python decoder requested")
+    import _lzxdec
+except ImportError:
+    _lzxdec = None
+
+
+def _lzx_decode(stream, image_size, wbits):
+    if _lzxdec is None:
+        return LZXDecoder(wbits).decompress(stream, image_size)
+    try:
+        return _lzxdec.decompress(stream, image_size, wbits)
+    except ValueError as e:
+        raise LZXError(str(e))
+
+
+def _xmem_lzx_decompress(data, image_size, window_size):
     frames, _ = parse_xmem_frames(data, image_size)
     stream = b"".join(payload for _, payload in frames)
     wbits = window_size.bit_length() - 1
@@ -435,7 +486,7 @@ def xmem_lzx_decompress(data, image_size, window_size):
     last_err = None
     for wb in candidates + [w for w in range(15, 22) if w not in candidates]:
         try:
-            return LZXDecoder(wb).decompress(stream, image_size)
+            return _lzx_decode(stream, image_size, wb)
         except LZXError as e:
             last_err = e
     raise LZXError(f"could not decompress with any window size: {last_err}")
@@ -464,7 +515,7 @@ def lzx_store_segment(data):
     return b"".join(frames)
 
 
-def rebuild_luh(template, new_chunks, mode="raw"):
+def rebuild_luh(template, new_chunks, mode="raw", renames=None):
     """Rebuild an LUH container from a template LuFile, replacing the chunk
     data of the records given in new_chunks ({record index: bytes}).
 
@@ -480,7 +531,9 @@ def rebuild_luh(template, new_chunks, mode="raw"):
     mode="raw" writes segments as raw passthrough (csize == usize, the
     engine's memcpy convention — verified in-game); mode="store" wraps them
     as LZX uncompressed-block streams (csize slightly > usize; the engine
-    REJECTS these — kept for experiments only). Returns the file bytes.
+    REJECTS these — kept for experiments only).
+    renames ({record index: name hash}) gives records a new name hash in the
+    record table, without moving or resizing them. Returns the file bytes.
     """
     if not getattr(template, "is_luh", False):
         raise ValueError("rebuild_luh needs an LUH-container template")
@@ -523,6 +576,7 @@ def rebuild_luh(template, new_chunks, mode="raw"):
     out += struct.pack(">I", len(template.records))
     for r in template.records:
         h, t, sz, off, fl = entries[r.index]
+        h = (renames or {}).get(r.index, h)
         out += struct.pack(">6I", h, t, 0xFFFFFFFF, sz, off, fl)
         out += b"\x00" * 15
     out += struct.pack(">5I", len(img), 1, len(img), window, len(segs))
@@ -899,7 +953,11 @@ def cmd_extract(args):
 
         for r in lu.records:
             name = names.get(r.hash, "")
-            base = f"{r.index:04d}_{name or r.hash.to_bytes(4, 'big').hex()}"
+            # harvested names can hold characters Windows refuses in a path
+            # ('f<v$'); the manifest keeps the real name, the file gets a
+            # safe one
+            fname = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name).rstrip(". ")
+            base = f"{r.index:04d}_{fname or r.hash.to_bytes(4, 'big').hex()}"
             source = "local"
             data = lu.chunk(r)
             if data is None:

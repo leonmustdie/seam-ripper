@@ -4,9 +4,9 @@
 
 Modding tools for the Xbox 360 Naughty Bear games: **Naughty Bear** and **Naughty Bear: Panic in Paradise**.
 
-Seam Ripper opens the games' `.lu` files so you can read and edit the gameplay scripts, change the text, pull out textures, models and sounds, and put it all back. You can share your mods as small patch files that don't contain any of the game.
+Seam Ripper opens the games' `.lu` files so you can read and edit the gameplay scripts, change the text, pull out textures, models and sounds, and put scripts, text, animations, textures and models back. You can share your mods as small patch files that never include the game's files: scripts and text travel as the lines you changed, animations as their motion, textures as your picture and models as the vertices you moved, or as the new model you made.
 
-You need your own copy of the game files. Nothing from the games is included here.
+You need your own copy of the game files. The tool includes nothing from the games.
 
 This replaces the tools from my older [.lu documentation repo](https://github.com/leonmustdie/lu-documentation).
 
@@ -24,7 +24,7 @@ To run from source instead: `pip install PySide6 pillow`, then `python SeamRippe
 
 Pick your game folder (the one with `lu\` in it) at the top left. Then:
 
-* **Files**: open a container and a script, and edit it. **Check** tells you if it compiles.
+* **Files**: open a container and a script, and edit it. **Check** tells you if it compiles. A container's other tabs hold its text, textures, models, sound and animations, and **Model editing** puts a new model in.
 * **Search**: find text in every script in the game.
 * **Changes**: your edits so far. **Ship** writes them into the game files.
 * **Patches**: save your changes as a `.srpatch`, or apply someone else's.
@@ -48,7 +48,7 @@ Want to know what to edit? [Naughty Bear](docs/game-nb1.md) and [Panic in Paradi
 
 ### Patches
 
-A patch only holds the lines you changed. Make one with **Save as patch…** on the Changes page.
+A patch only holds what you changed: script lines, strings, and your own animations, pictures and models. Make one with **Save as patch…** on the Changes page, or from the replace and import tools.
 
 To use one, open it on the Patches page. Seam Ripper checks your files first and tells you if it fits, then you can apply it to your game or to a copy.
 
@@ -70,13 +70,13 @@ If you play NB1 through restuff, set its folder in **Settings → Play**. **Ship
 
 * [docs/technical.md](docs/technical.md): how Seam Ripper works: Ship, the decompiler, hashed names
 * [docs/game-files.md](docs/game-files.md): file formats and PiP internals
-* [docs/examples](docs/examples/index.md): finished PiP mods as `.srpatch` files, with the edits explained
+* [docs/examples](docs/examples/index.md): finished mods for both games as `.srpatch` files, with the edits explained. [Blue big-head Naughty](docs/examples/blue-big-head-naughty.md) shows a texture and a model edit
 * [docs/cli.md](docs/cli.md): command-line tools and building the EXE
 * [docs/game-nb1.md](docs/game-nb1.md) and [docs/game-pip.md](docs/game-pip.md): what each game's scripts do, one page per system
 
 ## Legal
 
-Seam Ripper is a fan-made modding tool. It contains no assets, scripts or code from any Naughty Bear game. Use it only with files from copies of the games you own. *Naughty Bear* and *Naughty Bear: Panic in Paradise* were developed by Artificial Mind and Movement / Behaviour Interactive and published by 505 Games; all rights to the games belong to their owners. This project isn't affiliated with or endorsed by them.
+Seam Ripper is a fan-made modding tool. The tool contains no assets, scripts or code from any Naughty Bear game. Some examples carry content made from the games' own (Blue big-head Naughty holds a recoloured copy of Naughty's fur texture and his moved head vertices; the pre-order costumes zip holds the two costume files). Use it only with files from copies of the games you own. *Naughty Bear* and *Naughty Bear: Panic in Paradise* were developed by Artificial Mind and Movement / Behaviour Interactive and published by 505 Games; all rights to the games belong to their owners. This project isn't affiliated with or endorsed by them.
 
 Bundled third-party tools (luac, unluac, luadec, and lzxverify from libmspack) are listed with their licenses in [docs/cli.md](docs/cli.md#bundled-third-party-tools).
 

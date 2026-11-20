@@ -65,6 +65,25 @@ class Backend(unittest.TestCase):
         self.assertIsNone(backend.patch_json("nothing"))
         self.assertEqual(backend.patch_error("apply: bad thing\n"), "apply: bad thing")
 
+    def test_edit_lines_for_every_kind(self):
+        edits = [{"kind": "script", "name": "weaponmethods", "hunks": [{}, {}]},
+                 {"kind": "strings", "count": 1},
+                 {"kind": "anim", "clip": "0x12345678", "rig": 0, "duration": 2.5},
+                 {"kind": "texture", "texture": "0x0000abcd", "width": 512,
+                  "height": 256, "format": "DXT1"},
+                 {"kind": "mesh", "mesh": "0x00000001", "vertices": 1, "parts": 1},
+                 {"kind": "model", "mesh": "0x00000002", "vertices": 1630, "parts": 2}]
+        self.assertEqual([backend.patch_edit_text(e) for e in edits], [
+            "script weaponmethods: 2 changes", "1 localization string",
+            "animation 0x12345678 replaced (2.50 s)",
+            "texture 0x0000abcd replaced (512x256 DXT1)",
+            "model 0x00000001 reshaped (1 vertex moved)",
+            "model 0x00000002 replaced by a new one (1,630 vertices)"])
+        # a file row counts each replaced asset as one change, not zero
+        self.assertEqual(backend.patch_changes({"edits": edits}), 2 + 1 + 4)
+        self.assertEqual(backend.patch_edit_text({"kind": "anim", "clip": "0x1"}),
+                         "animation 0x1 replaced")
+
     def test_status_words(self):
         f = lambda s, d="": backend.patch_status_text({"status": s, "detail": d})
         self.assertEqual(f("ok"), ("ready", "ok"))

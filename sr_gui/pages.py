@@ -444,7 +444,7 @@ class ToolsPage(QWidget):
         self.stack.addWidget(intro)
         v.addWidget(self.stack)
 
-    def show_tool(self, title):
+    def show_tool(self, title, values=None):
         spec = toolspecs.find(title)
         if spec is None:
             return
@@ -463,6 +463,8 @@ class ToolsPage(QWidget):
             self.stack.addWidget(scroll)
         form, scroll = self.forms[title]
         form.prefill()
+        if values:
+            form.set_values(values)
         self.stack.setCurrentWidget(scroll)
 
     def refresh_prefill(self):

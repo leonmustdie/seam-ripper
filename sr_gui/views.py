@@ -1,4 +1,5 @@
-"""The container view: Scripts, Text, Textures, Models & sound and Info for one .lu."""
+"""The container view: Scripts, Text, Textures, Models & sound, Animations, Model editing
+and Info for one .lu."""
 import re
 import shutil
 from pathlib import Path
@@ -190,14 +191,18 @@ class TexturesTab(QWidget):
                                             options=QFileDialog.DontUseNativeDialog)
         if not fn:
             return
-        try:
-            backend.texture_replace(self.ctx.project, self.lu, it.text(), fn)
-        except backend.NotAvailable as e:
-            self.ctx.not_available(e)
+        m = re.search(r"([0-9a-fA-F]{8})$", it.text())
+        if not m:
+            self.ctx.banner.show_message(f"Can't tell the texture hash from {it.text()}.",
+                                         "warn")
+            return
+        self.ctx.open_tool("Replace a texture", {"Container with the texture": self.lu,
+                                                 "Texture hash": m.group(1).lower(),
+                                                 "Picture (PNG or DDS)": fn})
 
 
 class ToolStack(QScrollArea):
-    """A scrolling stack of tool forms (used for Models & sound)."""
+    """A scrolling stack of tool forms (Models & sound, Animations, Model editing)."""
 
     def __init__(self, ctx, titles):
         super().__init__()
@@ -267,9 +272,14 @@ class ContainerView(QWidget):
         self.models = ToolStack(ctx, ["Convert textures and models", "Sound banks",
                                       "Sound streams", "Character model (GLB)",
                                       "Menu movies (Panic in Paradise)"])
+        self.anim = ToolStack(ctx, ["Extract animations", "List animation clips",
+                                    "Replace an animation"])
+        self.edit_models = ToolStack(ctx, ["List models", "Export a model for editing",
+                                           "Import a new model", "Replace a model"])
         self.info = InfoTab(ctx)
         self.pages = [("Scripts", self.scripts), ("Text", self.text),
                       ("Textures", self.textures), ("Models && sound", self.models),
+                      ("Animations", self.anim), ("Model editing", self.edit_models),
                       ("Info", self.info)]
         for name, w in self.pages:
             self.tabs.addTab(w, name)
@@ -297,6 +307,11 @@ class ContainerView(QWidget):
         self.text.load(lu)
         self.textures.load(lu)
         self.models.prefill()
+        self.anim.prefill()
+        self.edit_models.prefill()
+        game_box = self.anim.forms[0].widgets["Game"][1]       # follow the open container
+        if GAME_NAMES.get(game):
+            game_box.setCurrentText(GAME_NAMES[game])
         self.info.set_text("Reading container info…")
         self.ctx.runner.run(backend.info_argv(self.ctx.settings, lu), cwd=APPDIR,
                             title="Reading info", quiet=True,

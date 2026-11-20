@@ -266,10 +266,7 @@ class PatchesPage(QWidget):
                 it = QTreeWidgetItem([t["file"], _plural(backend.patch_changes(t), "change")])
                 self.tree.addTopLevelItem(it)
                 for e in t["edits"]:
-                    text = (f"script {e['name']}: {_plural(len(e['hunks']), 'change')}"
-                            if e["kind"] == "script"
-                            else f"{_plural(e.get('count', 0), 'localization string')}")
-                    it.addChild(QTreeWidgetItem([text]))
+                    it.addChild(QTreeWidgetItem([backend.patch_edit_text(e)]))
                 it.setExpanded(True)
                 if self.checks:
                     words, tone = backend.patch_status_text(self.checks[n])

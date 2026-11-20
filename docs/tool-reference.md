@@ -15,5 +15,5 @@ and scripts *contain* is in the [Game reference](game-reference.md).
 |---|---|
 | [Patches and backups](patches.md) | The `.srpatch` format, making and applying patches, how your files are protected |
 | [How Seam Ripper works](technical.md) | Ship, the decompiler, hashed names, output formats, troubleshooting |
-| [Textures, models and sounds](assets.md) | Pulling the art and sound out of the game files |
+| [Textures, models and sounds](assets.md) | Pulling the art, animations and sound out of the game files, and putting textures, models and animations back |
 | [Command-line tools](cli.md) | Every tool, and building the EXE |

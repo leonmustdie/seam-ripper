@@ -12,7 +12,7 @@ This one comes as a script, not a `.srpatch`. A patch holds changed lines of
 script, and this edit is to a Flash movie, which patches cannot carry today.
 Instead there is one script that builds the modified file from your own copy
 of the game ([Try it out!](#try-it)). Making Flash edits a normal part of the
-app, with a patch you can apply, is planned for the next version of Seam Ripper.
+app, with a patch you can apply, is planned to arrive with UI editing.
 
 Naughty Bear's score lines ("You smashed a window!", then "+500") use one line
 of screen. A new line replaces the old one, and the rest wait in a queue and
@@ -217,7 +217,7 @@ Getting here took steps the app cannot do for you today:
   so the edited movie had to compress into exactly the size of the original.
   A proper import would move those offsets instead.
 
-The plan for 2.5 is to add all three, so a HUD edit is made, shared and
+The plan is to add all three with UI editing, so a HUD edit is made, shared and
 applied like a script patch: a patch would hold only the changed
 ActionScript, never the game's movie.
 

@@ -451,12 +451,6 @@ def parse_search_line(line):
 
 
 # ------------------------------------------------- NOT WIRED features
-def texture_replace(project, lu, texture, image):
-    """Replace `texture` in `lu` with a PNG/DDS of the same size and format;
-    -> {'ok': bool, 'problems': [...]}.  NOT WIRED."""
-    raise NotAvailable("Texture import")
-
-
 # ------------------------------------------------- patches (tools\sr_patch.py, run as a subprocess)
 def patch_make_argv(settings, out, meta, entries):
     """`sr_patch.py make`: entries are (original container, record index, edited .lua);
@@ -503,10 +497,47 @@ def patch_error(stderr, stdout=""):
     return lines[-1] if lines else "The patch tool failed. See the log."
 
 
+def _edit_changes(e):
+    """Changes in one edit: a script's hunks, a string table's strings, else 1
+    (one replaced animation, texture or model)."""
+    if e["kind"] == "script":
+        return len(e["hunks"])
+    if e["kind"] == "strings":
+        return e.get("count", 0)
+    return 1
+
+
 def patch_changes(entry):
     """How many changes a patch entry (one file) holds."""
-    return sum(len(e["hunks"]) if e["kind"] == "script" else e.get("count", 0)
-               for e in entry["edits"])
+    return sum(_edit_changes(e) for e in entry["edits"])
+
+
+def patch_edit_text(e):
+    """One line about one edit of a patch, for the Patches tab."""
+    k = e["kind"]
+
+    def n(c, one, many=None):
+        return f"{c:,} {one if c == 1 else many or one + 's'}"
+
+    if k == "script":
+        return f"script {e['name']}: {n(len(e['hunks']), 'change')}"
+    if k == "strings":
+        return n(e.get("count", 0), "localization string")
+    if k == "anim":
+        dur = f" ({e['duration']:.2f} s)" if "duration" in e else ""
+        return f"animation {e['clip']} replaced{dur}"
+    if k == "texture":
+        size = (f" ({e['width']}x{e['height']} {e['format']})"
+                if {"width", "height", "format"} <= e.keys() else "")
+        return f"texture {e['texture']} replaced{size}"
+    if k == "mesh":
+        moved = (f" ({n(e['vertices'], 'vertex', 'vertices')} moved)"
+                 if "vertices" in e else "")
+        return f"model {e['mesh']} reshaped{moved}"
+    if k == "model":
+        size = f" ({n(e['vertices'], 'vertex', 'vertices')})" if "vertices" in e else ""
+        return f"model {e['mesh']} replaced by a new one{size}"
+    return f"{k} edit"
 
 
 def patch_summary(manifest, size):

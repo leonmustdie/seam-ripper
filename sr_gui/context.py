@@ -52,9 +52,10 @@ class Context(QObject):
         return self._scratch
 
     # navigation: the main window fills these in
-    def open_tool(self, title):
+    def open_tool(self, title, values=None):
+        """Show a tool's form, optionally with fields filled ({label: value})."""
         if self.window:
-            self.window.open_tool(title)
+            self.window.open_tool(title, values)
 
     def show_changes(self, key=None):
         if self.window:

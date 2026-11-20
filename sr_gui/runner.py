@@ -1,8 +1,35 @@
 """Background command runner: a queue of tool runs, one at a time, cancellable."""
 import shlex
+import warnings
 from collections import deque
 
+import shiboken6
 from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, Signal
+
+
+def alive(*objs):
+    """False once Qt has deleted any of these (a closing window takes its processes
+    with it, and a dying QProcess still emits into Python)."""
+    return all(shiboken6.isValid(o) for o in objs)
+
+
+def drop(proc):
+    """Let a process go for good: cut its signals first, then kill and delete it.
+    Qt's QProcess destructor drains the pipes and emits readyRead and finished;
+    still connected, those reach Python after the wrapper is gone."""
+    if not alive(proc):
+        return
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        for sig in (proc.readyReadStandardOutput, proc.readyReadStandardError,
+                    proc.finished, proc.errorOccurred):
+            try:
+                sig.disconnect()
+            except Exception:                       # nothing connected
+                pass
+    if proc.state() != QProcess.NotRunning:
+        proc.kill()
+    proc.deleteLater()
 
 
 class Job:
@@ -47,7 +74,7 @@ class Runner(QObject):
         self.log.stamp("cancelled.")
         self.queue.clear()
         self.cancelled = True
-        if self.proc is not None:
+        if self.proc is not None and alive(self.proc):
             self.proc.kill()
         else:
             self.cancelled = False
@@ -91,7 +118,7 @@ class Runner(QObject):
             self._fin(job, proc, -1)
 
     def _fin(self, job, proc, code):
-        if job is not self.job:                     # already handled
+        if not alive(self) or job is not self.job:  # already handled, or closing
             return
         self._read(job, proc, False)
         self._read(job, proc, True)
@@ -101,10 +128,7 @@ class Runner(QObject):
         if code != 0 and not self.cancelled:
             self.log.write(f"{job.title or 'The tool'} failed (exit {code}).", "err")
         self.job, self.proc = None, None
-        try:
-            proc.deleteLater()
-        except RuntimeError:
-            pass
+        drop(proc)
         if job.on_done:
             try:
                 job.on_done(code, "".join(job.out), "".join(job.err))
@@ -141,13 +165,16 @@ class SideProc(QObject):
         env.insert("PYTHONUTF8", "1")
         env.insert("PYTHONIOENCODING", "utf-8")
         proc.setProcessEnvironment(env)
-        proc.readyReadStandardOutput.connect(
-            lambda: out.append(bytes(proc.readAllStandardOutput()).decode("utf-8", "replace")))
-        proc.readyReadStandardError.connect(
-            lambda: err.append(bytes(proc.readAllStandardError()).decode("utf-8", "replace")))
+        def read(into, is_err):
+            if alive(proc):
+                into.append(bytes(proc.readAllStandardError() if is_err
+                                  else proc.readAllStandardOutput()).decode("utf-8", "replace"))
+
+        proc.readyReadStandardOutput.connect(lambda: read(out, False))
+        proc.readyReadStandardError.connect(lambda: read(err, True))
 
         def fin(code=-1, _s=None):
-            if token != self.token or self.proc is not proc:
+            if not alive(self, proc) or token != self.token or self.proc is not proc:
                 return
             try:
                 out.append(bytes(proc.readAllStandardOutput()).decode("utf-8", "replace"))
@@ -155,7 +182,7 @@ class SideProc(QObject):
             except RuntimeError:
                 return
             self.proc = None
-            proc.deleteLater()
+            drop(proc)
             if code != 0:
                 self.log.write("".join(err).strip()[-800:])
             # replaces "running a tool" in the status bar
@@ -172,5 +199,4 @@ class SideProc(QObject):
         if self.proc is not None:
             self.token += 1
             proc, self.proc = self.proc, None
-            proc.kill()
-            proc.deleteLater()
+            drop(proc)

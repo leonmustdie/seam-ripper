@@ -31,3 +31,6 @@ docs/_site/
 docs/.jekyll-cache/
 docs/Gemfile.lock
 docs/vendor/
+
+# local backups made before large edits (not part of the tool)
+tools_backups_*/

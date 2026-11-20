@@ -346,9 +346,15 @@ class PathRow(QWidget):
 # ----------------------------------------------------------------- tool form
 class ToolForm(QGroupBox):
     """A form built from a spec, one per command-line tool.
-    spec = {title, script, sub (optional), help, fields:[...]};
+    spec = {title, script, sub (optional), help, fields:[...], button (optional),
+            extra_buttons (optional): [{label, args, show_if}]};
     field = {label, kind: openfile|savefile|folder|paths|text|flag|choice,
-             flag (optional '--x'), patterns, choices, default, required, fill}.
+             flag (optional '--x'), patterns, choices, default, required, fill,
+             values (choice only: the command-line value for each choice),
+             show_if (optional): {"<choice label>": "<text>" or ["<text>", ...]}}.
+    A field or extra button with `show_if` is only shown, and only used in the
+    command, while the named choice has one of the listed values. An extra
+    button's `args` are appended to the command (e.g. ["--plan"]).
     `fill` says what to prefill: 'file' (the selected container), 'paths'
     (the selected container, or the project folder), 'folder' (the project
     folder) or 'out' (a folder under
@@ -383,15 +389,58 @@ class ToolForm(QGroupBox):
                 w.setText(str(f.get("default", "")))
             form.addRow(f["label"], w)
             self.widgets[f["label"]] = (f, w)
+        self.form = form
         lay.addLayout(form)
         row = QHBoxLayout()
         self.run_btn = QPushButton(spec.get("button", "Run"))
         self.run_btn.setObjectName("primary")
-        self.run_btn.clicked.connect(self.run)
+        self.run_btn.clicked.connect(lambda: self.run())
         row.addWidget(self.run_btn)
+        self.extra = []                     # (spec, button)
+        for eb in spec.get("extra_buttons", []):
+            b = QPushButton(eb["label"])
+            b.clicked.connect(lambda _=False, a=eb["args"]: self.run(a))
+            row.addWidget(b)
+            self.extra.append((eb, b))
         row.addStretch(1)
         lay.addLayout(row)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        # rows and extra buttons that depend on a choice (see the class doc)
+        conds = [f for f, _ in self.widgets.values() if f.get("show_if")] + \
+                [eb for eb, _ in self.extra if eb.get("show_if")]
+        for name in {n for c in conds for n in c["show_if"]}:
+            self.widgets[name][1].currentTextChanged.connect(self._refresh)
+        if conds:
+            self._refresh()
+
+    def set_values(self, values):
+        """Fill fields by label ({label: value}); later prefills leave the
+        path fields set here alone."""
+        for name, v in values.items():
+            f, w = self.widgets[name]
+            if isinstance(w, PathRow):
+                w.set_value(v)
+                w.dirty = True
+            elif isinstance(w, QCheckBox):
+                w.setChecked(bool(v))
+            else:
+                w.setText(str(v))
+
+    def _shown(self, item):
+        """True unless item's show_if names a choice that has another value."""
+        for name, want in (item.get("show_if") or {}).items():
+            want = [want] if isinstance(want, str) else want
+            if self.widgets[name][1].currentText() not in want:
+                return False
+        return True
+
+    def _refresh(self):
+        for f, w in self.widgets.values():
+            if f.get("show_if"):
+                self.form.setRowVisible(w, self._shown(f))
+        for eb, b in self.extra:
+            if eb.get("show_if"):
+                b.setVisible(self._shown(eb))
 
     def prefill(self):
         """Fill empty, untouched path fields from the current selection."""
@@ -418,15 +467,20 @@ class ToolForm(QGroupBox):
             return w.currentText()
         return w.text().strip()
 
-    def argv(self):
+    def argv(self, extra_args=()):
         """The command line for the current field values, or None if a
-        required field is empty (the log says which)."""
+        required field is empty (the log says which). Fields hidden by
+        `show_if` are left out."""
         argv = tool_argv(self.ctx.settings, self.spec["script"])
         if self.spec.get("sub"):
             argv.append(self.spec["sub"])
         pos, opt = [], []
         for name, (f, w) in self.widgets.items():
+            if f.get("show_if") and not self._shown(f):
+                continue
             v = self._val(f, w)
+            if f["kind"] == "choice" and f.get("values"):
+                v = f["values"][f["choices"].index(v)]      # shown text -> command-line value
             if f["kind"] == "flag":
                 if v and f.get("flag"):
                     opt.append(f["flag"])
@@ -439,13 +493,14 @@ class ToolForm(QGroupBox):
             if f.get("flag"):
                 opt += [f["flag"], v]
             elif f.get("multi") or f["kind"] == "paths":
-                pos += shlex.split(v)
+                # one existing path as it is (shlex would eat Windows backslashes)
+                pos += [v] if Path(v).exists() else shlex.split(v)
             else:
                 pos.append(v)
-        return argv + pos + opt
+        return argv + pos + opt + list(extra_args)
 
-    def run(self):
-        argv = self.argv()
+    def run(self, extra_args=()):
+        argv = self.argv(extra_args)
         if argv:
             for f, w in self.widgets.values():      # make sure an output folder exists
                 if f["kind"] == "folder" and f.get("flag") and self._val(f, w):

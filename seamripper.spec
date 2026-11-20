@@ -40,6 +40,16 @@ TOOL_SCRIPTS = [
     "nbdec.py", "nbdec_bench.py", "nb_reconstruct.py",
     "sr_backup.py", "sr_launch.py", "sr_lookup.py", "sr_search.py",
     "sr_patch.py", "pip_schema.py", "xiso_extract.py",
+    # the Extract animations tool: one front door over decode, scripts and bake
+    "anim_extract.py", "lu_anim2.py", "lu_corpus.py", "pip_corpus.py",
+    "pip_names.py",
+    # writing animation clips back: encoder, round-trip check, swap tool
+    "lu_anim_encode.py", "anim_roundtrip.py", "anim_replace.py",
+    # writing textures and models back: codecs, same-size record writer, tools
+    "lu_texture.py", "lu_mesh.py", "lu_records.py", "tex_replace.py",
+    "mesh_replace.py",
+    # importing a new model (any vertex count) into a character mesh
+    "mesh_import.py",
 ]
 # PiP dumper companions — present in the full repo; harmless to list if
 # missing at build time? No: PyInstaller errors on missing datas, so these
@@ -50,7 +60,11 @@ OPTIONAL_SCRIPTS = ["lu_rig.py", "pip_scripts.py"]
 # stay as __hash_0x placeholders; nothing breaks.
 # nb_text.json is the game's own localized text, built from the user's
 # files; it must never ship in a release.
-OPTIONAL_DATA = ["nb_names.json", "nb_names_sources.json"]
+OPTIONAL_DATA = ["nb_names.json", "nb_names_sources.json",
+                 "nb1_anim_vocab.txt",       # NB1 clip names, used by pip_names
+                 "nb1_anim_sources.tsv",     # which container holds which clips (needs report)
+                 "nb1_clip_names.tsv",       # clip and state names for anim_replace
+                 "pip_clip_names.tsv"]       # the same for PiP, plus which containers hold each clip
 
 import os
 BINARIES = ["luac51.exe", "unluac.jar", "luadec.exe",
@@ -62,6 +76,14 @@ BINARIES = ["luac51.exe", "unluac.jar", "luadec.exe",
 
 def _in_tools(name):
     return os.path.join(TOOLS_DIR, name)
+
+
+# The native LZX decoder (built by tools/lzxnative_src/build.py with the
+# Python that runs this spec). Optional: without it naughty_lu falls back to
+# its Python decoder, which reads containers about 50x slower.
+import glob
+NATIVE = [(p, ".") for p in glob.glob(_in_tools("_lzxdec.*.pyd"))
+          + glob.glob(_in_tools("_lzxdec.*.so"))]
 
 
 datas = [(_in_tools(s), ".") for s in TOOL_SCRIPTS if os.path.exists(_in_tools(s))]
@@ -98,7 +120,7 @@ except ImportError:
 a = Analysis(
     ["SeamRipper.py"],
     pathex=[],
-    binaries=[],
+    binaries=NATIVE,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],

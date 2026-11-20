@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 r"""Seam Ripper: GUI front-end for the Naughty Bear modding toolkit."""
+import multiprocessing
 import sys
 
-from sr_gui.paths import BUNDLE, FROZEN
+# A tool that works in several processes at once (sr_patch apply) starts this
+# EXE again as a worker; freeze_support runs the worker and exits, before the
+# --tool shim or the GUI below.
+multiprocessing.freeze_support()
+
+from sr_gui.paths import BUNDLE, FROZEN  # noqa: E402
 
 # --------------------------------------------------------------- frozen shim
 # When packaged with PyInstaller there is no system python to shell out to.
